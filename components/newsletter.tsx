@@ -1,0 +1,4 @@
+'use client';
+import {useState} from 'react';
+import {errorMessage,send} from '@/lib/api';
+export function Newsletter(){const [message,setMessage]=useState(''),[busy,setBusy]=useState(false);return <section className="newsletter"><div><p className="eyebrow">The Bonoful note</p><h2>New frames. Clearer thinking.</h2></div><div><form onSubmit={async e=>{e.preventDefault();setBusy(true);const email=new FormData(e.currentTarget).get('email');try{const result=await send<{message:string}>('newsletter',{email});setMessage(result.message);}catch(error){setMessage(errorMessage(error));}finally{setBusy(false);}}}><label className="sr-only" htmlFor="newsletter-email">Email address</label><input id="newsletter-email" type="email" name="email" placeholder="Your email address" required/><button disabled={busy}>{busy?'Joining…':'Join the list →'}</button></form>{message&&<p role="status">{message}</p>}</div></section>;}

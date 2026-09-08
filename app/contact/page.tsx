@@ -1,0 +1,3 @@
+import Link from 'next/link';
+export const metadata={title:'Contact Bonoful Optics'};
+export default function Contact(){return <main className="prose-page"><h1>Contact us</h1><p>Need help choosing a frame or checking an order?</p>{process.env.NEXT_PUBLIC_STORE_PHONE&&<p>Call: <a href={'tel:'+process.env.NEXT_PUBLIC_STORE_PHONE}>{process.env.NEXT_PUBLIC_STORE_PHONE}</a></p>}{process.env.NEXT_PUBLIC_STORE_ADDRESS&&<p>{process.env.NEXT_PUBLIC_STORE_ADDRESS}</p>}<p>You can view the latest status of your purchase in <Link href="/account/orders">your orders</Link>.</p><Link href="/shop" className="button button-dark">Back to shop</Link></main>;}

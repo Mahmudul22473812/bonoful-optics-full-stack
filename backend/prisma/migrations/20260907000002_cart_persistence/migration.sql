@@ -1,0 +1,4 @@
+ALTER TABLE "Cart" DROP CONSTRAINT "Cart_sessionId_fkey";
+ALTER TABLE "Cart" ALTER COLUMN "sessionId" DROP NOT NULL;
+ALTER TABLE "Cart" ADD CONSTRAINT "Cart_sessionId_fkey" FOREIGN KEY ("sessionId") REFERENCES "Session"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+UPDATE "Cart" SET "sessionId" = NULL WHERE "userId" IS NOT NULL;

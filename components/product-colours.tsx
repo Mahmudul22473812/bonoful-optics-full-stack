@@ -1,0 +1,7 @@
+import type {Product} from '@/lib/catalog';
+const colours:Record<string,string>={black:'#232725',silver:'linear-gradient(135deg,#8e979c,#edf0f1,#9ba5aa)',gold:'linear-gradient(135deg,#aa8143,#eed3a0,#b38a4b)',brown:'#795038',tortoise:'repeating-linear-gradient(35deg,#38251d 0 5px,#a87438 5px 9px,#583626 9px 12px)',tortoiseshell:'repeating-linear-gradient(35deg,#38251d 0 5px,#a87438 5px 9px)',blue:'#456c98',navy:'#293c5c',green:'#58725a',pink:'#d6a6b3',blush:'#e4bdc5',red:'#a64345',purple:'#8b6b9d',white:'#fafafa',grey:'#919698',gray:'#919698',clear:'linear-gradient(135deg,#fff,#dfe9e9,#fff)',crystal:'linear-gradient(135deg,#fff,#dfe9e9,#fff)'};
+export function ProductColours({product,selected,onSelect}:{product:Product;selected?:string;onSelect?:(colour:string)=>void}){
+ const available=[...new Set(product.variants.map(v=>v.color).filter(Boolean))];
+ if(!available.length)return null;
+ return <div className="product-colour-swatches" role="group" aria-label={'Available colours for '+product.name}>{available.map(colour=><button type="button" key={colour} className="product-colour-chip" aria-label={colour} aria-pressed={selected===colour} onClick={()=>onSelect?.(colour)}><span aria-hidden="true" className="product-colour-dot" style={{background:colours[colour.trim().toLowerCase()]??'#e5e5df'}}>{!colours[colour.trim().toLowerCase()]&&colour.slice(0,1).toUpperCase()}</span><span className="product-colour-label" aria-hidden="true">{colour}</span></button>)}</div>;
+}

@@ -1,0 +1,24 @@
+import {render,screen,waitFor} from '@testing-library/react';
+import {expect,test,vi} from 'vitest';
+import {AccountDashboard} from '@/components/account-dashboard';
+const state=vi.hoisted(()=>({path:'/account',user:{id:'customer-test',name:'Test Customer',permissions:[]}}));
+vi.mock('next/navigation',()=>({usePathname:()=>state.path}));
+vi.mock('next/link',()=>({default:({children,scroll,...props}:any)=><a {...props}>{children}</a>}));
+vi.mock('@/components/commerce-provider',()=>({useCommerce:()=>({user:state.user,ready:true,logout:vi.fn(),savedProducts:[]})}));
+vi.mock('@/lib/api',()=>({api:vi.fn(async()=>[]),errorMessage:()=>''}));
+vi.mock('@/components/account-forms',()=>({Addresses:()=>null,Prescriptions:()=>null,ProfileForm:()=>null}));
+vi.mock('@/components/order-view',()=>({OrderView:()=>null}));
+vi.mock('@/components/product-card',()=>({ProductCard:()=>null}));
+test('account sidebar stays mounted as sections change',async()=>{
+ state.path='/account';const {rerender}=render(<AccountDashboard/>);
+ await waitFor(()=>expect(screen.getByRole('heading',{name:'Everything in one place.'})).toBeInTheDocument());
+ const sidebar=screen.getByRole('navigation',{name:'Account navigation'});
+ state.path='/account/wishlist';rerender(<AccountDashboard/>);
+ expect(screen.getByRole('navigation',{name:'Account navigation'})).toBe(sidebar);
+ expect(screen.getByRole('link',{name:'Wishlist',exact:true})).toHaveAttribute('aria-current','page');
+ expect(screen.getByRole('heading',{name:'Saved for later.'})).toBeInTheDocument();
+ state.path='/account/orders';rerender(<AccountDashboard/>);
+ expect(screen.getByRole('navigation',{name:'Account navigation'})).toBe(sidebar);
+ await waitFor(()=>expect(screen.getByRole('heading',{name:'Your orders.'})).toBeInTheDocument());
+ expect(screen.queryByRole('heading',{name:'Saved for later.'})).not.toBeInTheDocument();
+});

@@ -1,0 +1,10 @@
+{
+  "compilerOptions": {
+    "target": "ES2022", "module": "CommonJS", "moduleResolution": "node",
+    "strict": true, "esModuleInterop": true, "experimentalDecorators": true,
+    "emitDecoratorMetadata": true, "skipLibCheck": true, "outDir": "dist",
+    "declaration": true, "sourceMap": true, "types": ["node", "multer"]
+  },
+  "include": ["src/**/*.ts", "prisma/**/*.ts"],
+  "exclude": ["node_modules", "dist", "tests"]
+}

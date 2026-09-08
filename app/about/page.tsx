@@ -1,0 +1,4 @@
+import Link from 'next/link';
+import { Breadcrumb } from '@/components/ui';
+export const metadata={title:'About Bonoful Optics'};
+export default function About(){return <main className="prose-page"><Breadcrumb items={[{label:'About'}]}/><p className="eyebrow">Bonoful Optics</p><h1>Eyewear, thoughtfully considered.</h1><p>A frame should feel as good as it looks. Bonoful Optics brings eyewear selection, prescription records and attentive fitting into one experience.</p><h2>Find your fit</h2><p>Explore shapes, materials and sizes at your own pace. Clear measurements and variant availability help you make an informed choice.</p><h2>Care beyond the frame</h2><p>Your prescriptions stay private. Share a saved prescription with an eligible order, or arrange a consultation before choosing lenses.</p><Link href="/services" className="button button-dark">Talk to the optical team</Link></main>;}

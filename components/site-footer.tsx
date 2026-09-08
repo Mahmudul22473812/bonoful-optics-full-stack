@@ -1,0 +1,2 @@
+import Link from 'next/link';
+export function SiteFooter(){return <footer className="shop-footer"><div><Link href="/" className="brand"><span className="brand-mark">bo</span><span>Bonoful <em>Optics</em></span></Link><p>Eyewear for your everyday.</p></div><nav aria-label="Footer"><Link href="/shop">Shop</Link><Link href="/account/orders">My orders</Link><Link href="/contact">Contact</Link><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link></nav><small>© {new Date().getFullYear()} Bonoful Optics</small></footer>;}

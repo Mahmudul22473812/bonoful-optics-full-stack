@@ -1,0 +1,115 @@
+{
+  "checkedOn": "2026-09-07",
+  "intendedUse": "Development seed catalog and optical-shopping lifestyle imagery; these photos do not verify actual Bonoful inventory or premises.",
+  "licenseNotes": {
+    "pexels": {
+      "url": "https://www.pexels.com/license/",
+      "summary": "Free use including websites and e-commerce; attribution optional; modification permitted. Do not imply endorsement by pictured people or brands."
+    },
+    "unsplash": {
+      "url": "https://unsplash.com/license",
+      "summary": "Free commercial and non-commercial use; attribution appreciated."
+    }
+  },
+  "assets": [
+    {
+      "file": "black-round-unsplash.jpg",
+      "role": "product",
+      "recommended": true,
+      "description": "Black round acetate eyeglasses on white, three-quarter view with generous space above/right.",
+      "photographer": "Gerald Hartl",
+      "source": "https://unsplash.com/photos/black-framed-eyeglasses-on-white-surface-yQpSxKF_ELA",
+      "image": "https://images.unsplash.com/photo-1608906709312-fe17f7c1a5a6?auto=format&fit=max&w=1200&q=85",
+      "license": "unsplash",
+      "suggestedObjectPosition": "35% 65%"
+    },
+    {
+      "file": "metal-frames-13430477.jpg",
+      "role": "collection",
+      "recommended": false,
+      "description": "Two rectangular metal frames on white. Visible Humphrey's branding on lenses.",
+      "photographer": "Saliem Moeslan",
+      "source": "https://www.pexels.com/photo/eyeglasses-on-a-white-surface-13430477/",
+      "image": "https://images.pexels.com/photos/13430477/pexels-photo-13430477.jpeg?auto=compress&w=1200",
+      "license": "pexels",
+      "suggestedObjectPosition": "50% 50%"
+    },
+    {
+      "file": "minimal-metal-28881364.jpg",
+      "role": "product",
+      "recommended": true,
+      "description": "Slim silver/lilac square frame on white with warm beige upper background; full frame visible.",
+      "photographer": "GlassesShop GS",
+      "source": "https://www.pexels.com/photo/minimalist-eyeglasses-on-white-surface-28881364/",
+      "image": "https://images.pexels.com/photos/28881364/pexels-photo-28881364.jpeg?auto=compress&w=1200",
+      "license": "pexels",
+      "suggestedObjectPosition": "50% 66%"
+    },
+    {
+      "file": "pair-frames-25651729.jpg",
+      "role": "collection",
+      "recommended": true,
+      "description": "Two metal frames, black and bronze, on white.",
+      "photographer": "GlassesShop GS",
+      "source": "https://www.pexels.com/photo/eyeglasses-on-white-25651729/",
+      "image": "https://images.pexels.com/photos/25651729/pexels-photo-25651729/free-photo-of-eyeglasses-on-white.jpeg?auto=compress&w=1200",
+      "license": "pexels",
+      "suggestedObjectPosition": "50% 50%"
+    },
+    {
+      "file": "clear-frames-6143506.jpg",
+      "role": "product",
+      "recommended": true,
+      "description": "Clear round acetate frame with brown wooden-looking temples on white woven fabric.",
+      "photographer": "cottonbro studio",
+      "source": "https://www.pexels.com/photo/close-up-shot-of-an-eyeglasses-on-a-white-surface-6143506/",
+      "image": "https://images.pexels.com/photos/6143506/pexels-photo-6143506.jpeg?auto=compress&w=1200",
+      "license": "pexels",
+      "suggestedObjectPosition": "50% 65%"
+    },
+    {
+      "file": "black-frames-1438409.jpg",
+      "role": "detail",
+      "recommended": false,
+      "description": "Macro of black acetate frame and clear lens; does not show entire product.",
+      "photographer": "Marta Branco",
+      "source": "https://www.pexels.com/photo/black-framed-eyeglasses-1438409/",
+      "image": "https://images.pexels.com/photos/1438409/pexels-photo-1438409.jpeg?auto=compress&w=1200",
+      "license": "pexels",
+      "suggestedObjectPosition": "50% 50%"
+    },
+    {
+      "file": "geometric-frames-6176179.jpg",
+      "role": "product",
+      "recommended": true,
+      "description": "Transparent blush octagonal frame on teal, purple, and ochre background. Small GloriaStudio brand mark on temple.",
+      "photographer": "Volker Meyer",
+      "source": "https://www.pexels.com/photo/close-up-shot-of-eyeglasses-6176179/",
+      "image": "https://images.pexels.com/photos/6176179/pexels-photo-6176179.jpeg?auto=compress&w=1200",
+      "license": "pexels",
+      "suggestedObjectPosition": "50% 50%"
+    },
+    {
+      "file": "sunglasses-11199907.jpg",
+      "role": "product",
+      "recommended": true,
+      "description": "Black and white brow-bar sunglasses with pale mirrored lenses on white. Visible Prive Revaux temple branding.",
+      "photographer": "Daniel Balarezo",
+      "source": "https://www.pexels.com/photo/sunglasses-on-a-white-surface-11199907/",
+      "image": "https://images.pexels.com/photos/11199907/pexels-photo-11199907.jpeg?auto=compress&w=1200",
+      "license": "pexels",
+      "suggestedObjectPosition": "50% 50%"
+    },
+    {
+      "file": "optical-store-5752258.jpg",
+      "role": "lifestyle",
+      "recommended": true,
+      "description": "Customer examining eyeglasses in an optical store; closely cropped hands and glasses, softly blurred displays. Stock scene, not actual Bonoful premises.",
+      "photographer": "Ksenia Chernaya",
+      "source": "https://www.pexels.com/photo/woman-choosing-glasses-in-eyewear-store-5752258/",
+      "image": "https://images.pexels.com/photos/5752258/pexels-photo-5752258.jpeg?auto=compress&w=1600",
+      "license": "pexels",
+      "suggestedObjectPosition": "48% 50%"
+    }
+  ]
+}

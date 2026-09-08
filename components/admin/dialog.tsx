@@ -1,0 +1,3 @@
+'use client';
+import {useEffect,useId,useRef} from 'react';
+export function Dialog({title,onClose,children}:{title:string;onClose:()=>void;children:React.ReactNode}){const ref=useRef<HTMLDialogElement>(null),id=useId();useEffect(()=>{const dialog=ref.current;const previous=document.body.style.overflow;dialog?.showModal();document.body.style.overflow='hidden';return()=>{dialog?.close();document.body.style.overflow=previous;};},[]);return <dialog ref={ref} aria-labelledby={id} className="editor-dialog" onCancel={onClose}><div className="dialog-heading"><h2 id={id}>{title}</h2><button type="button" onClick={onClose} aria-label="Close dialog">×</button></div>{children}</dialog>;}

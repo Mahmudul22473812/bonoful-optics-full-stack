@@ -1,0 +1,12 @@
+ALTER TABLE "Inventory" ADD CONSTRAINT inventory_nonnegative CHECK ("onHand" >= 0 AND reserved >= 0 AND reserved <= "onHand" AND "lowThreshold" >= 0);
+ALTER TABLE "InventoryMovement" ADD CONSTRAINT movement_balanced CHECK ("before" + change = "after" AND "reservedBefore" + "reservedChange" = "reservedAfter" AND "after" >= 0 AND "reservedAfter" >= 0 AND "reservedAfter" <= "after");
+ALTER TABLE "ProductVariant" ADD CONSTRAINT valid_variant_price CHECK (price >= 0 AND ("salePrice" IS NULL OR ("salePrice" >= 0 AND "salePrice" < price)));
+ALTER TABLE "CartItem" ADD CONSTRAINT valid_cart_quantity CHECK (quantity BETWEEN 1 AND 50);
+ALTER TABLE "OrderItem" ADD CONSTRAINT valid_order_item CHECK (quantity BETWEEN 1 AND 50 AND "unitPrice" >= 0);
+ALTER TABLE "Order" ADD CONSTRAINT valid_order_totals CHECK (subtotal >= 0 AND discount >= 0 AND discount <= subtotal AND tax >= 0 AND shipping >= 0 AND total = subtotal-discount+tax+shipping);
+ALTER TABLE "PurchaseOrderItem" ADD CONSTRAINT valid_receiving CHECK (quantity > 0 AND received >= 0 AND received <= quantity AND "unitCost" >= 0);
+ALTER TABLE "Review" ADD CONSTRAINT valid_rating CHECK (rating BETWEEN 1 AND 5);
+ALTER TABLE "Coupon" ADD CONSTRAINT valid_coupon CHECK (type IN ('FIXED','PERCENT') AND value > 0 AND (type != 'PERCENT' OR value <= 100) AND minimum >= 0 AND "endsAt" > "startsAt" AND "usageLimit" > 0 AND "perCustomerLimit" > 0);
+CREATE INDEX idx_inventory_available ON "Inventory" (("onHand"-reserved));
+CREATE INDEX idx_variant_effective_price ON "ProductVariant" ((COALESCE("salePrice",price))) WHERE active=true;
+CREATE INDEX idx_product_search ON "Product" USING GIN (to_tsvector('simple',name || ' ' || description));
