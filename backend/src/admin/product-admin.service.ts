@@ -4,7 +4,14 @@ import { PrismaService } from '../core/prisma.service';
 
 const safeImage=z.string().refine(value=>value.startsWith('/media/')||/^\/api\/v1\/files\/[a-zA-Z0-9_-]+$/.test(value),'Use an uploaded image or a catalog asset.');
 const variantSchema=z.object({id:z.string().optional(),sku:z.string().trim().min(3).max(60),color:z.string().min(1).max(50),size:z.string().min(1).max(40),tone:z.string().max(30).default('black'),price:z.number().int().min(100).max(10000000),salePrice:z.number().int().min(0).nullable().optional(),active:z.boolean().default(true)}).refine(v=>v.salePrice==null||v.salePrice<v.price,'Sale price must be below regular price.');
-export const productSchema=z.object({name:z.string().trim().min(2).max(120),slug:z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).max(140),description:z.string().trim().min(10).max(10000),categoryId:z.string(),brandId:z.string(),gender:z.enum(['Women','Men','Unisex','Kids']),shape:z.string().min(1).max(50),material:z.string().min(1).max(80),lens:z.string().min(1).max(80),measurements:z.string().min(1).max(40),prescriptionAllowed:z.boolean().default(true),featured:z.boolean().default(false),active:z.boolean().default(true),seoTitle:z.string().max(70).optional(),seoDescription:z.string().max(180).optional(),variants:z.array(variantSchema).min(1).max(50),images:z.array(z.object({url:safeImage,alt:z.string().min(1).max(200),color:z.string().trim().max(80).nullable().optional()})).max(12)}).strict();
+export const productSchema=z.object({name:z.string().trim().min(2).max(120),slug:z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).max(140),description:z.string().trim().min(10).max(10000),categoryId:z.string(),brandId:z.string(),gender:z.enum(['Women','Men','Unisex','Kids']),shape:z.string().min(1).max(50),material:z.string().min(1).max(80),lens:z.string().min(1).max(80),measurements:z.string().min(1).max(40),prescriptionAllowed:z.boolean().default(true),featured:z.boolean().default(false),active:z.boolean().default(true),seoTitle:z.string().max(70).optional(),seoDescription:z.string().max(180).optional(),variants:z.array(variantSchema).min(1).max(50),images:z.array(z.object({url:safeImage,alt:z.string().min(1).max(200),color:z.string().trim().max(80).nullable().optional()})).max(12)}).strict().superRefine((product,context)=>{
+  const seen=new Set<string>();
+  product.variants.forEach((variant,index)=>{
+    const key=`${variant.color.trim().toLocaleLowerCase()}::${variant.size.trim().toLocaleLowerCase()}`;
+    if(seen.has(key)) context.addIssue({code:'custom',path:['variants',index],message:`${variant.color} in ${variant.size} is listed more than once.`});
+    seen.add(key);
+  });
+});
 
 @Injectable()
 export class ProductAdminService {

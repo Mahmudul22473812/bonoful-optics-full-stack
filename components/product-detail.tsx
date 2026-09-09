@@ -1,16 +1,300 @@
-'use client';
-import { useState } from 'react';
-import {imagesForColour} from '@/lib/product-images';
-import Image from 'next/image';
-import { ProductImageViewer } from './product-image-viewer';
-import Link from 'next/link';
-import { useCommerce } from './commerce-provider';
-import { Alert } from './ui';
-import { StarRow } from './icons';
-import { formatPrice,type Product } from '@/lib/catalog';
-import { errorMessage,send } from '@/lib/api';
+"use client";
+import { useState } from "react";
+import { imagesForColour } from "@/lib/product-images";
+import Image from "next/image";
+import { ProductImageViewer } from "./product-image-viewer";
+import Link from "next/link";
+import { useCommerce } from "./commerce-provider";
+import { Alert } from "./ui";
+import { StarRow } from "./icons";
+import { formatPrice, type Product } from "@/lib/catalog";
+import { errorMessage, send } from "@/lib/api";
 
-export function ProductDetail({product}:{product:Product}){
- const {user,addToCart,toggleWishlist,wishlist,busy}=useCommerce();const [variantId,setVariant]=useState(product.variantId),[imageIndex,setImage]=useState(0),[quantity,setQuantity]=useState(1),[error,setError]=useState(''),[reviewMessage,setReviewMessage]=useState('');const variant=product.variants.find(v=>v.id===variantId);const selected={...product,...(variant?{variantId:variant.id,price:variant.price,salePrice:variant.salePrice,stock:variant.stock,color:variant.color}:{} )};const photos=imagesForColour(product,selected.color);const photo=photos[imageIndex]??photos[0];
- return <><div className="detail-grid"><div className="gallery"><div className="gallery-main">{photo?<ProductImageViewer key={photo.url} photo={photo}/>:<span>No image available</span>}</div>{photos.length>1&&<div className="gallery-thumbs">{photos.map((image,i)=><button key={image.id} aria-label={`View ${image.alt}`} aria-pressed={i===imageIndex} onClick={()=>setImage(i)}><Image src={image.url} alt="" width={100} height={80}/></button>)}</div>}</div><div className="detail-copy"><p className="eyebrow">{product.brand} · {product.category}</p><h1>{product.name}</h1><div className="detail-price">{selected.salePrice&&<s>{formatPrice(selected.price)}</s>}<span>{formatPrice(selected.salePrice??selected.price)}</span></div><p>{product.description}</p><div className="review-inline"><StarRow rating={product.reviews.length?Math.round(product.reviews.reduce((n,r)=>n+r.rating,0)/product.reviews.length):0}/><a href="#reviews">{product.reviews.length} reviews</a></div><fieldset className="frame-colours"><legend>Colour: <strong>{selected.color}</strong></legend><div>{[...new Set(product.variants.map(v=>v.color))].map(color=><button type="button" key={color} aria-pressed={selected.color===color} onClick={()=>{const options=product.variants.filter(v=>v.color===color);const next=options.find(v=>v.size===variant?.size&&v.stock>0)??options.find(v=>v.stock>0)??options[0];setVariant(next.id);setImage(0);setQuantity(1);setError('');}}>{color}{!product.variants.some(v=>v.color===color&&v.stock>0)&&<small>Out of stock</small>}</button>)}</div></fieldset><label>Size<select value={variantId} onChange={e=>{setVariant(e.target.value);setQuantity(1);}}>{product.variants.filter(v=>v.color===selected.color).map(v=><option value={v.id} key={v.id}>{v.size} · {v.stock?'In stock':'Out of stock'}</option>)}</select></label><p className={selected.stock?'stock-note':'stock-note unavailable'}>{selected.stock?`${selected.stock} available · ready to fit`:'Currently out of stock'}</p><label className="quantity-label">Quantity<input type="number" min="1" max={Math.min(50,selected.stock)} value={quantity} onChange={e=>setQuantity(Math.max(1,Number(e.target.value)))}/></label>{error&&<Alert>{error}</Alert>}<div className="buy-actions"><button className="button button-dark button-wide" disabled={busy||!selected.stock} onClick={()=>{setError('');void addToCart(selected,quantity).catch(e=>setError(errorMessage(e)));}}>{busy?'Updating bag…':selected.stock?'Add to bag':'Out of stock'}</button><button className="button button-outline" aria-label="Save frame" onClick={()=>void toggleWishlist(product.id).catch(()=>{})}>{wishlist.includes(product.id)?'♥':'♡'}</button></div><p className="small-note">{product.prescriptionAllowed?'Add a saved prescription during checkout.':'No prescription required for this product.'}</p><dl className="spec-list">{[['SKU',variant?.sku??product.sku],['Shape',product.shape],['Material',product.material],['Measurements',product.measurements],['Lens compatibility',product.lens]].map(([key,value])=><div key={key}><dt>{key}</dt><dd>{value}</dd></div>)}</dl><Link className="text-link" href="/services">Need help finding your fit? →</Link></div></div><section id="reviews" className="product-reviews"><div><p className="eyebrow">A closer look</p><h2>Customer reviews</h2>{product.reviews.length?product.reviews.map(review=><article key={review.id}><StarRow rating={review.rating}/><p>{review.body}</p><small>{review.user.name.split(' ')[0]} · {new Date(review.createdAt).toLocaleDateString('en-GB')}</small></article>):<p>No reviews yet. Share your experience after trying this frame.</p>}</div><div>{user?<form onSubmit={async e=>{e.preventDefault();const form=new FormData(e.currentTarget);try{await send(`products/${product.id}/reviews`,{rating:Number(form.get('rating')),body:form.get('body')});setReviewMessage('Thank you. Your review is awaiting moderation.');}catch(error){setReviewMessage(errorMessage(error));}}}><h3>Leave a review</h3><label>Rating<select name="rating"><option value="5">5 — Excellent</option><option value="4">4 — Good</option><option value="3">3 — Average</option><option value="2">2 — Fair</option><option value="1">1 — Poor</option></select></label><label>Your review<textarea name="body" minLength={10} maxLength={2000} required rows={4}/></label><button className="button button-dark">Submit for review</button>{reviewMessage&&<p role="status">{reviewMessage}</p>}</form>:<p><Link className="text-link" href="/login">Sign in to write a review →</Link></p>}</div></section></>;
+export function ProductDetail({
+  product,
+  initialColour,
+}: {
+  product: Product;
+  initialColour?: string;
+}) {
+  const initialVariant =
+    product.variants.find(
+      (v) =>
+        v.color.toLowerCase() === initialColour?.toLowerCase() && v.stock > 0,
+    ) ??
+    product.variants.find(
+      (v) => v.color.toLowerCase() === initialColour?.toLowerCase(),
+    ) ??
+    product.variants.find((v) => v.id === product.variantId);
+  const { user, addToCart, toggleWishlist, wishlist, busy } = useCommerce();
+  const [variantId, setVariant] = useState(
+      initialVariant?.id ?? product.variantId,
+    ),
+    [imageIndex, setImage] = useState(0),
+    [quantity, setQuantity] = useState(1),
+    [error, setError] = useState(""),
+    [reviewMessage, setReviewMessage] = useState("");
+  const variant = product.variants.find((v) => v.id === variantId);
+  const selected = {
+    ...product,
+    ...(variant
+      ? {
+          variantId: variant.id,
+          price: variant.price,
+          salePrice: variant.salePrice,
+          stock: variant.stock,
+          color: variant.color,
+        }
+      : {}),
+  };
+  const photos = imagesForColour(product, selected.color);
+  const photo = photos[imageIndex] ?? photos[0];
+  return (
+    <>
+      <div className="detail-grid">
+        <div className="gallery">
+          {photos.length > 0 && (
+            <div
+              className="gallery-thumbs"
+              aria-label={`${selected.color} product images`}
+            >
+              {photos.map((image, i) => (
+                <button
+                  key={image.id}
+                  aria-label={`View ${image.alt}`}
+                  aria-pressed={i === imageIndex}
+                  onClick={() => setImage(i)}
+                >
+                  <Image src={image.url} alt="" width={100} height={80} />
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="gallery-main">
+            {photo ? (
+              <ProductImageViewer key={photo.url} photo={photo} />
+            ) : (
+              <span>No image available for {selected.color}</span>
+            )}
+          </div>
+        </div>
+        <div className="detail-copy">
+          <p className="eyebrow">
+            {product.brand} · {product.category}
+          </p>
+          <h1>{product.name}</h1>
+          <div className="detail-price">
+            {selected.salePrice && <s>{formatPrice(selected.price)}</s>}
+            <span>{formatPrice(selected.salePrice ?? selected.price)}</span>
+          </div>
+          <p>{product.description}</p>
+          <div className="review-inline">
+            <StarRow
+              rating={
+                product.reviews.length
+                  ? Math.round(
+                      product.reviews.reduce((n, r) => n + r.rating, 0) /
+                        product.reviews.length,
+                    )
+                  : 0
+              }
+            />
+            <a href="#reviews">{product.reviews.length} reviews</a>
+          </div>
+          <fieldset className="frame-colours">
+            <legend>
+              Colour: <strong>{selected.color}</strong>
+            </legend>
+            <div>
+              {[...new Set(product.variants.map((v) => v.color))].map(
+                (color) => (
+                  <button
+                    type="button"
+                    key={color}
+                    aria-pressed={selected.color === color}
+                    onClick={() => {
+                      const options = product.variants.filter(
+                        (v) => v.color === color,
+                      );
+                      const next =
+                        options.find(
+                          (v) => v.size === variant?.size && v.stock > 0,
+                        ) ??
+                        options.find((v) => v.stock > 0) ??
+                        options[0];
+                      setVariant(next.id);
+                      setImage(0);
+                      setQuantity(1);
+                      setError("");
+                    }}
+                  >
+                    {color}
+                    {!product.variants.some(
+                      (v) => v.color === color && v.stock > 0,
+                    ) && <small>Out of stock</small>}
+                  </button>
+                ),
+              )}
+            </div>
+          </fieldset>
+          <label>
+            Size
+            <select
+              value={variantId}
+              onChange={(e) => {
+                setVariant(e.target.value);
+                setQuantity(1);
+              }}
+            >
+              {product.variants
+                .filter((v) => v.color === selected.color)
+                .map((v) => (
+                  <option value={v.id} key={v.id}>
+                    {v.size} · {v.stock ? "In stock" : "Out of stock"}
+                  </option>
+                ))}
+            </select>
+          </label>
+          <p
+            className={selected.stock ? "stock-note" : "stock-note unavailable"}
+          >
+            {selected.stock
+              ? `${selected.stock} available · ready to fit`
+              : "Currently out of stock"}
+          </p>
+          <label className="quantity-label">
+            Quantity
+            <input
+              type="number"
+              min="1"
+              max={Math.min(50, selected.stock)}
+              value={quantity}
+              onChange={(e) => setQuantity(Math.max(1, Number(e.target.value)))}
+            />
+          </label>
+          {error && <Alert>{error}</Alert>}
+          <div className="buy-actions">
+            <button
+              className="button button-dark button-wide"
+              disabled={busy || !selected.stock}
+              onClick={() => {
+                setError("");
+                void addToCart(selected, quantity).catch((e) =>
+                  setError(errorMessage(e)),
+                );
+              }}
+            >
+              {busy
+                ? "Updating bag…"
+                : selected.stock
+                  ? "Add to bag"
+                  : "Out of stock"}
+            </button>
+            <button
+              className="button button-outline"
+              aria-label="Save frame"
+              onClick={() => void toggleWishlist(product.id).catch(() => {})}
+            >
+              {wishlist.includes(product.id) ? "♥" : "♡"}
+            </button>
+          </div>
+          <p className="small-note">
+            {product.prescriptionAllowed
+              ? "Add a saved prescription during checkout."
+              : "No prescription required for this product."}
+          </p>
+          <dl className="spec-list">
+            {[
+              ["SKU", variant?.sku ?? product.sku],
+              ["Shape", product.shape],
+              ["Material", product.material],
+              ["Measurements", product.measurements],
+              ["Lens compatibility", product.lens],
+            ].map(([key, value]) => (
+              <div key={key}>
+                <dt>{key}</dt>
+                <dd>{value}</dd>
+              </div>
+            ))}
+          </dl>
+          <Link className="text-link" href="/services">
+            Need help finding your fit? →
+          </Link>
+        </div>
+      </div>
+      <section id="reviews" className="product-reviews">
+        <div>
+          <p className="eyebrow">A closer look</p>
+          <h2>Customer reviews</h2>
+          {product.reviews.length ? (
+            product.reviews.map((review) => (
+              <article key={review.id}>
+                <StarRow rating={review.rating} />
+                <p>{review.body}</p>
+                <small>
+                  {review.user.name.split(" ")[0]} ·{" "}
+                  {new Date(review.createdAt).toLocaleDateString("en-GB")}
+                </small>
+              </article>
+            ))
+          ) : (
+            <p>
+              No reviews yet. Share your experience after trying this frame.
+            </p>
+          )}
+        </div>
+        <div>
+          {user ? (
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                const form = new FormData(e.currentTarget);
+                try {
+                  await send(`products/${product.id}/reviews`, {
+                    rating: Number(form.get("rating")),
+                    body: form.get("body"),
+                  });
+                  setReviewMessage(
+                    "Thank you. Your review is awaiting moderation.",
+                  );
+                } catch (error) {
+                  setReviewMessage(errorMessage(error));
+                }
+              }}
+            >
+              <h3>Leave a review</h3>
+              <label>
+                Rating
+                <select name="rating">
+                  <option value="5">5 — Excellent</option>
+                  <option value="4">4 — Good</option>
+                  <option value="3">3 — Average</option>
+                  <option value="2">2 — Fair</option>
+                  <option value="1">1 — Poor</option>
+                </select>
+              </label>
+              <label>
+                Your review
+                <textarea
+                  name="body"
+                  minLength={10}
+                  maxLength={2000}
+                  required
+                  rows={4}
+                />
+              </label>
+              <button className="button button-dark">Submit for review</button>
+              {reviewMessage && <p role="status">{reviewMessage}</p>}
+            </form>
+          ) : (
+            <p>
+              <Link className="text-link" href="/login">
+                Sign in to write a review →
+              </Link>
+            </p>
+          )}
+        </div>
+      </section>
+    </>
+  );
 }
