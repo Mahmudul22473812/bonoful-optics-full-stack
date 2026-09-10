@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { imagesForColour } from "@/lib/product-images";
+import { imagesForColour, isUploadedImage } from "@/lib/product-images";
 import Image from "next/image";
 import { ProductImageViewer } from "./product-image-viewer";
 import Link from "next/link";
@@ -65,7 +65,7 @@ export function ProductDetail({
                   aria-pressed={i === imageIndex}
                   onClick={() => setImage(i)}
                 >
-                  <Image src={image.url} alt="" width={100} height={80} />
+                  <Image src={image.url} alt="" width={100} height={80} unoptimized={isUploadedImage(image.url)} />
                 </button>
               ))}
             </div>

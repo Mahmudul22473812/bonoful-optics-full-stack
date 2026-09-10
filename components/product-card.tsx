@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { imagesForColour } from "@/lib/product-images";
+import { imagesForColour, isUploadedImage } from "@/lib/product-images";
 import { ProductColours } from "./product-colours";
 import Image from "next/image";
 import { useState } from "react";
@@ -65,6 +65,7 @@ export function ProductCard({ product: original }: { product: Product }) {
                 className="product-photo-primary"
                 src={photos[0].url}
                 alt={photos[0].alt}
+                unoptimized={isUploadedImage(photos[0].url)}
                 fill
                 sizes="(max-width:560px) 48vw, (max-width:1000px) 33vw, 24vw"
               />
@@ -73,6 +74,7 @@ export function ProductCard({ product: original }: { product: Product }) {
                   className="product-photo-alternate"
                   src={photos[1].url}
                   alt=""
+                  unoptimized={isUploadedImage(photos[1].url)}
                   fill
                   sizes="(max-width:560px) 48vw, (max-width:1000px) 33vw, 24vw"
                 />
