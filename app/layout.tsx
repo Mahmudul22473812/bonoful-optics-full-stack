@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 
 import { CommerceProvider } from '@/components/commerce-provider';
 import { SiteShell } from '@/components/site-shell';
+import { FormValidation } from '@/components/form-validation';
 import './globals.css';
 import './account-polish.css';
 import './product-viewer.css';
@@ -20,5 +21,5 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en"><body ><CommerceProvider><SiteShell>{children}</SiteShell></CommerceProvider></body></html>;
+  return <html lang="en"><body><FormValidation/><CommerceProvider><SiteShell>{children}</SiteShell></CommerceProvider></body></html>;
 }

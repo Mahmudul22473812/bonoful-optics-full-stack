@@ -3509,3 +3509,5 @@ textarea {
     height: 180px;
   }
 }
+.field-error { display:block; width:100%; margin-top:.45rem; color:#a12620; font-size:.875rem; font-weight:650; line-height:1.35; }
+input[aria-invalid="true"],select[aria-invalid="true"],textarea[aria-invalid="true"] { border-color:#b93831 !important; box-shadow:0 0 0 3px rgba(185,56,49,.12); }

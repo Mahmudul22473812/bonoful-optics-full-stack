@@ -14,6 +14,7 @@ export function AuthForm({action,token,returnTo}:{action:string;token?:string;re
   {action==='register'&&<label>Full name<input name="name" autoComplete="name" required minLength={2} maxLength={100}/></label>}
   {['login','register','forgot-password'].includes(action)&&<label>Email address<input name="email" type="email" autoComplete="email" required/></label>}
   {['login','register','reset-password'].includes(action)&&<label>Password<input name="password" type="password" autoComplete={action==='login'?'current-password':'new-password'} required minLength={action==='login'?1:12} maxLength={128}/>{action!=='login'&&<small>At least 12 characters, including upper case, lower case, and a number.</small>}</label>}
+  {action==='register'&&<label>Confirm password<input name="confirmPassword" type="password" autoComplete="new-password" required minLength={12} maxLength={128} data-match="password"/></label>}
   {action==='verify-email'&&<p>Confirm your email to place orders and keep your account up to date.</p>}
   {error&&<Alert>{error}</Alert>}{message&&<p className="success-message" role="status">{message}</p>}
   <button className="button button-dark button-wide" disabled={busy||!ready}>{busy?'Please wait…':action==='login'?'Sign in':action==='register'?'Create account':action==='verify-email'?'Verify email':'Continue'}</button>
