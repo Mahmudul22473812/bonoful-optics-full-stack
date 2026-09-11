@@ -134,6 +134,19 @@ Before a public launch:
 
 The separate NestJS API and PostgreSQL database must be hosted where the frontend can reach them. Localhost configuration is not a production deployment. Existing Sites tooling does not deploy the separate backend automatically.
 
+### Preview deployment
+
+The repository includes deployment definitions for a Netlify frontend and a
+Render API. Use a managed PostgreSQL connection string for the API.
+
+- Netlify builds with `npm run build:next`. Set `API_URL` to the public Render
+  origin and `NEXT_PUBLIC_SITE_URL` to the final Netlify origin.
+- Render reads `render.yaml`. Set `DATABASE_URL` to the managed PostgreSQL
+  connection string and `WEB_ORIGIN` to the final Netlify origin. `DATA_KEY` is
+  generated once by Render and must be backed up before storing private files.
+- Apply the Prisma migrations before serving traffic. Do not run the development
+  seed against an existing production database.
+
 ## Assets and documentation
 
 See [architecture](docs/ARCHITECTURE.md) and [image credits](docs/IMAGE_CREDITS.json). Demo assets do not establish actual product availability or stock. No license is granted beyond any applicable third-party asset terms unless the owner adds a project license.

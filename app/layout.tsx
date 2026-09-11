@@ -14,9 +14,11 @@ import './readability.css';
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'),
-  title: { default: 'Bonoful Optics — Eyeglasses & Sunglasses', template: '%s · Bonoful Optics' },
+  applicationName: 'Bonoful Optics',
+  title: { default: 'Bonoful Optics', template: '%s · Bonoful Optics' },
   description: 'Shop eyeglasses, sunglasses and everyday frames at Bonoful Optics.',
-  openGraph: { title:'Bonoful Optics', description:'See well. Look entirely yourself.', images:[{ url:'/og.png', width:1672, height:941, alt:'Bonoful Optics tortoiseshell eyewear' }] },
+  icons: { icon: '/favicon.svg', shortcut: '/favicon.svg' },
+  openGraph: { type:'website', siteName:'Bonoful Optics', title:'Bonoful Optics', description:'See well. Look entirely yourself.', images:[{ url:'/og.png', width:1672, height:941, alt:'Bonoful Optics tortoiseshell eyewear' }] },
   twitter: { card:'summary_large_image', title:'Bonoful Optics', description:'See well. Look entirely yourself.', images:['/og.png'] },
 };
 
