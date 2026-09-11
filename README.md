@@ -34,13 +34,13 @@ Requirements: Node.js 22.13+ and a running PostgreSQL database.
 ```sh
 git clone https://github.com/Mahmudul22473812/bonoful-optics-full-stack.git
 cd bonoful-optics-full-stack
-npm ci
+npm --prefix frontend ci
 npm --prefix backend ci
 ```
 
 ### 2. Configure environment
 
-Copy the root `.env.example` to `.env.local` and `backend/.env.example` to `backend/.env`.
+Copy `frontend/.env.example` to `frontend/.env.local` and `backend/.env.example` to `backend/.env`.
 
 Set `DATABASE_URL`, `WEB_ORIGIN`, and a random `DATA_KEY` (32 bytes expressed as 64 hexadecimal characters). Supply strong development seed passwords if using sample data. Set `API_URL` in the frontend environment to the reachable backend origin.
 
@@ -74,7 +74,7 @@ npm run dev
 In another terminal, from the repository root:
 
 ```sh
-npm run dev -- --port 3000
+npm --prefix frontend run dev -- --port 3000
 ```
 
 - Storefront: http://localhost:3000
@@ -93,9 +93,9 @@ Upload photos and use **Photo colour** to assign each image. Selecting a colour 
 ## Checks and builds
 
 ```sh
-npm run typecheck
-npm test
-npm run build
+npm --prefix frontend run typecheck
+npm --prefix frontend test
+npm --prefix frontend run build
 npm --prefix backend run build
 npm --prefix backend test
 ```
@@ -107,14 +107,14 @@ Tests cover product cards, persistent account navigation, grouped admin navigati
 ## Repository structure
 
 ```text
-app/                  Routes and styles
-components/           Storefront, account and admin UI
-lib/                  API clients and shared frontend helpers
+frontend/app/         Routes and styles
+frontend/components/  Storefront, account and admin UI
+frontend/lib/         API clients and shared frontend helpers
 backend/src/          NestJS application
 backend/prisma/       Schema, migrations and development seed
 backend/tests/        Backend unit tests
-tests/                Frontend component/helper tests
-public/               Static demo assets
+frontend/tests/       Frontend component/helper tests
+frontend/public/      Static demo assets
 docs/                 Architecture and image credits
 ```
 
@@ -139,7 +139,7 @@ The separate NestJS API and PostgreSQL database must be hosted where the fronten
 The repository includes deployment definitions for a Netlify frontend and a
 Render API. Use a managed PostgreSQL connection string for the API.
 
-- Netlify builds with `npm run build:next`. Set `API_URL` to the public Render
+- Netlify uses `frontend` as its base and builds with `npm run build:next`. Set `API_URL` to the public Render
   origin and `NEXT_PUBLIC_SITE_URL` to the final Netlify origin.
 - Render reads `render.yaml`. Set `DATABASE_URL` to the managed PostgreSQL
   connection string and `WEB_ORIGIN` to the final Netlify origin. `DATA_KEY` is

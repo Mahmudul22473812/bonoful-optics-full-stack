@@ -1,5 +1,6 @@
 # dependencies
 /node_modules
+frontend/node_modules/
 /.pnp
 .pnp.*
 .yarn/*
@@ -13,6 +14,7 @@
 
 # next.js
 /.next/
+frontend/.next/
 /.vinext/
 /out/
 
@@ -29,6 +31,7 @@ yarn-error.log*
 # local environment
 .env*
 !.env.example
+!frontend/.env.example
 !backend/.env.example
 
 # deployment and generated files
