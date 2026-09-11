@@ -9,14 +9,14 @@
     "dev": "vinext dev",
     "build": "vinext build",
     "start": "vinext start",
-    "lint": "eslint . --ignore-pattern dist --ignore-pattern backend/dist --ignore-pattern .next",
+    "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "build:next": "next build",
     "start:next": "next start",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --config vitest.config.ts",
     "test:e2e": "playwright test",
-    "format": "prettier --write app components lib backend/src backend/prisma docs",
-    "db:generate": "npm --prefix backend run db:generate"
+    "format": "prettier --write app components lib ../backend/src ../backend/prisma ../docs",
+    "db:generate": "npm --prefix ../backend run db:generate"
   },
   "dependencies": {
     "next": "16.3.4",
