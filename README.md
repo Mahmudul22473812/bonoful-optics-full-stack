@@ -9,7 +9,7 @@ Full-stack storefront and inventory management for a local optical shop, built w
 - Product browsing, search, filters, wishlist, reviews and shopping cart.
 - Colour/size variants with independent prices and stock.
 - Colour swatches and colour-assigned product photos, plus a centered image zoom viewer.
-- Customer accounts, addresses, private prescriptions and order tracking.
+- Customer accounts with email/phone OTP verification, addresses, private prescriptions and order tracking.
 - Persistent customer/admin navigation, responsive layouts and accessible controls.
 - Staff permission filtering and server-side authorization.
 - Product/category/brand management, stock movements, suppliers and purchase receiving.
@@ -43,6 +43,8 @@ npm --prefix backend ci
 Copy `frontend/.env.example` to `frontend/.env.local` and `backend/.env.example` to `backend/.env`.
 
 Set `DATABASE_URL`, `WEB_ORIGIN`, and a random `DATA_KEY` (32 bytes expressed as 64 hexadecimal characters). Supply strong development seed passwords if using sample data. Set `API_URL` in the frontend environment to the reachable backend origin.
+
+For registration verification, configure `SMTP_URL` and `MAIL_FROM` for email OTPs. Phone OTPs are enabled when `SMS_WEBHOOK_URL` is set; the service posts `{ "to": "+880...", "message": "..." }` and includes `SMS_WEBHOOK_TOKEN` as a bearer token when configured. Production rejects OTP requests for an unconfigured channel instead of pretending delivery succeeded.
 
 Generate an encryption key locally:
 
@@ -120,7 +122,7 @@ docs/                 Architecture and image credits
 
 ## Security and production checklist
 
-Implemented: hashed passwords, hashed session tokens stored in PostgreSQL, HttpOnly/SameSite cookies, Secure cookies in production, CSRF checks for protected mutations, origin validation, backend permissions, encrypted prescription data, bounded image decoding and transactional stock operations.
+Implemented: hashed passwords, hashed session tokens stored in PostgreSQL, HttpOnly/SameSite cookies, Secure cookies in production, CSRF checks for protected mutations, origin validation, backend permissions, encrypted prescription data, bounded image decoding, transactional stock operations, and account-bound single-use OTPs stored as keyed hashes with expiry, resend cooldowns and rate limits.
 
 Before a public launch:
 

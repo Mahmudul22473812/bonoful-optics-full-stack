@@ -6,6 +6,7 @@ process.env.NODE_ENV = 'test';
 const { calculateTotals, transitions } = require('../dist/src/commerce/calculations');
 const { encrypt, decrypt, digest, matches, token } = require('../dist/src/core/security');
 const { normalizeImage } = require('../dist/src/core/image-upload');
+const { generateVerificationOtp, verificationOtpHash, verificationOtpMatches } = require('../dist/src/auth/auth.service');
 const sharp = require('sharp');
 
 test('totals use integer minor units and quantity', () => {
@@ -46,6 +47,16 @@ test('token matching rejects invalid hashes without crashing', () => {
   assert.equal(matches(raw,digest(raw)),true);
   assert.equal(matches(token(),digest(raw)),false);
   assert.equal(matches(raw,'bad-hash'),false);
+});
+test('verification OTPs are six digits, account-bound, and stored as keyed hashes', () => {
+  const otp=generateVerificationOtp();
+  assert.match(otp,/^\d{6}$/);
+  const key='a'.repeat(64);
+  const stored=verificationOtpHash(key,'user-a',otp);
+  assert.notEqual(stored,otp);
+  assert.equal(verificationOtpMatches(key,'user-a',otp,stored),true);
+  assert.equal(verificationOtpMatches(key,'user-b',otp,stored),false);
+  assert.equal(verificationOtpMatches(key,'user-a','000000',stored),otp==='000000');
 });
 test('image upload decodes and normalizes to WebP', async () => {
   const input = await sharp({create:{width:10,height:10,channels:3,background:'#fff'}}).png().toBuffer();

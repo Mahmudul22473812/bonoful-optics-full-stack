@@ -990,6 +990,11 @@ h1 em {
   background: #e2eddc;
   padding: 16px;
 }
+.otp-form > p:not(.eyebrow,.success-message,.small-note) { color:#586a61; line-height:1.65; }
+.otp-input { text-align:center; font-size:1.75rem !important; font-weight:700; letter-spacing:.42em; font-variant-numeric:tabular-nums; padding-left:calc(.42em + 14px) !important; }
+.otp-resend { width:100%; border:0; background:transparent; color:#245c3e; text-decoration:underline; padding:10px; cursor:pointer; }
+.otp-resend:disabled { color:#7f8c84; cursor:not-allowed; text-decoration:none; }
+.otp-form .eyebrow { margin-bottom:0; color:#5f7469; }
 @media (max-width: 800px) {
   .auth-page {
     grid-template-columns: 1fr;

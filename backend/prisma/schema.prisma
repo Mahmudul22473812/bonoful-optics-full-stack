@@ -37,11 +37,20 @@ enum TokenKind {
   VERIFY
   RESET
 }
+enum VerificationChannel {
+  EMAIL
+  PHONE
+}
+enum VerificationPurpose {
+  ACCOUNT_VERIFY
+}
 model User {
   id String @id @default(cuid())
   email String @unique
   name String
-  phone String?
+  phone String? @unique
+  emailVerifiedAt DateTime?
+  phoneVerifiedAt DateTime?
   passwordHash String
   active Boolean @default(true)
   verifiedAt DateTime?
@@ -49,6 +58,7 @@ model User {
   role Role @relation(fields:[roleId], references:[id])
   sessions Session[]
   tokens AuthToken[]
+  verificationOtps VerificationOtp[]
   addresses Address[]
   orders Order[]
   prescriptions Prescription[]
@@ -63,6 +73,20 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   @@index([roleId,active])
+}
+model VerificationOtp {
+  id String @id @default(cuid())
+  userId String
+  user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+  channel VerificationChannel
+  purpose VerificationPurpose
+  codeHash String
+  attempts Int @default(0)
+  expiresAt DateTime
+  usedAt DateTime?
+  createdAt DateTime @default(now())
+  @@index([userId,purpose,channel,createdAt])
+  @@index([expiresAt])
 }
 model Role {
   id String @id
