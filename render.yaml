@@ -4,7 +4,7 @@ services:
     runtime: node
     plan: free
     rootDir: backend
-    buildCommand: npm ci && npm run db:generate && npm run build && npm run db:migrate
+    buildCommand: npm ci --include=dev && npm run db:generate && npm run build && npm run db:migrate
     startCommand: npm start
     healthCheckPath: /api/v1/products?limit=1
     autoDeployTrigger: commit
@@ -21,4 +21,3 @@ services:
         generateValue: true
       - key: FILE_ROOT
         value: ./storage
-
