@@ -8,6 +8,7 @@ import { json, urlencoded } from 'express';
 import { AppModule } from './app.module';
 import { SafeErrors } from './core/errors';
 import { config } from './core/config';
+import { syncSeedAccountPasswords } from './core/seed-account-sync';
 
 export async function createApp() {
   const app=await NestFactory.create(AppModule,{bodyParser:false});
@@ -23,4 +24,4 @@ export async function createApp() {
   SwaggerModule.setup('api/docs',app,document,{jsonDocumentUrl:'api/openapi.json'});
   return app;
 }
-if(require.main===module) void createApp().then(app=>app.listen(config.PORT,config.HOST)).catch(()=>{process.stderr.write('API startup failed. Check environment configuration and database connectivity.\n');process.exit(1);});
+if(require.main===module) void syncSeedAccountPasswords().then(createApp).then(app=>app.listen(config.PORT,config.HOST)).catch(()=>{process.stderr.write('API startup failed. Check environment configuration and database connectivity.\n');process.exit(1);});
