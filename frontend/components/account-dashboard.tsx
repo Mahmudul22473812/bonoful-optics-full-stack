@@ -1,24 +1,276 @@
-'use client';
-import Link from 'next/link';
-import {usePathname} from 'next/navigation';
-import { useEffect,useState } from 'react';
-import { useCommerce } from './commerce-provider';
-import { Alert,EmptyState,Loading,Status } from './ui';
-import { ProductCard } from './product-card';
-import { Addresses,Prescriptions,ProfileForm } from './account-forms';
-import { OrderView } from './order-view';
-import { api,errorMessage } from '@/lib/api';
-import { money,type PageResult } from '@/lib/catalog';
-import type {Order} from '@/lib/orders';
-const links=[['','Overview'],['orders','Orders'],['wishlist','Wishlist'],['profile','Profile & password'],['addresses','Addresses'],['prescriptions','Prescriptions'],['reviews','My reviews']];
-export function AccountDashboard(){
- const pathname=usePathname();const section=pathname.split('/').filter(Boolean).slice(1);
- const {user,ready,logout,savedProducts}=useCommerce();const [loaded,setLoaded]=useState<{key:string;value:unknown}|null>(null),[error,setError]=useState(''),[revision,setRevision]=useState(0),[page,setPage]=useState(1);const view=section[0]??'',id=section[1];
- const endpoint=view==='orders'?(id?`orders/${id}`:`orders?page=${page}`):view==='reviews'?'reviews':view===''?'notifications':null;
- const dataKey=`${user?.id}:${endpoint}`;const data=loaded?.key===dataKey?loaded.value:null;
- useEffect(()=>{setPage(1);setError('');},[pathname]);
- useEffect(()=>{if(!user)return;if(!endpoint)return;let current=true;void api<unknown>(endpoint).then(d=>{if(current){setLoaded({key:dataKey,value:d});setError('');}}).catch(e=>{if(current)setError(errorMessage(e));});return()=>{current=false;};},[endpoint,dataKey,user,revision]);
- if(!ready)return <Loading/>;if(!user)return <main className="page-shell"><EmptyState title="Your account, all in one place" href="/login" label="Sign in">Track orders, save frames, and manage your prescriptions.</EmptyState></main>;
- const orders=data as PageResult<Order>|null;const reviews=data as {id:string;rating:number;body:string;approved:boolean;product:{name:string}}[]|null;const notifications=data as {id:string;title:string;createdAt:string}[]|null;
- return <main className="account-layout"><aside className="account-sidebar"><div className="account-identity"><span className="account-avatar" aria-hidden="true">{user.name.slice(0,1).toUpperCase()}</span><div><p className="eyebrow">Your account</p><h2>Hello, {user.name.split(' ')[0]}.</h2></div></div><nav aria-label="Account navigation">{links.map(([path,label])=><Link key={path} scroll={false} href={`/account${path?`/${path}`:''}`} aria-current={view===path?'page':undefined}>{label}</Link>)}{user.permissions.length>0&&<Link href="/admin">Store administration ↗</Link>}<button className="account-signout" onClick={()=>void logout().catch(e=>setError(errorMessage(e)))}>Sign out</button></nav></aside><div className="account-content"><div key={pathname} className="account-section">{error&&<Alert>{error}</Alert>}{endpoint&&data===null&&!error?<Loading/>:<>{view===''&&<><header className="account-welcome"><div><p className="eyebrow">Account overview</p><h1>Everything in one place.</h1><p>Your orders, saved frames and personal details.</p></div><Link href="/shop" className="button button-outline">Browse eyewear <span aria-hidden="true">↗</span></Link></header><div className="account-shortcuts"><Link href="/account/orders"><span className="account-card-symbol" aria-hidden="true">↗</span><h3>Your orders</h3><p>Check your order status and delivery updates.</p><span>View orders →</span></Link><Link href="/account/prescriptions"><span className="account-card-symbol" aria-hidden="true">＋</span><h3>Your prescriptions</h3><p>Keep your eye-care records private and close.</p><span>Manage records →</span></Link></div><section className="account-updates"><div className="account-updates-heading"><h2>Latest updates</h2><span>Activity</span></div>{Array.isArray(notifications)&&notifications.length?notifications.map(n=><p key={n.id}>{n.title} <small>{new Date(n.createdAt).toLocaleDateString('en-GB')}</small></p>):<p>You are all caught up.</p>}</section></>}{view==='profile'&&<ProfileForm/>}{view==='addresses'&&<Addresses/>}{view==='prescriptions'&&<Prescriptions/>}{view==='wishlist'&&<><h1>Saved for later.</h1>{savedProducts.length?<div className="product-grid account-products">{savedProducts.map(product=><ProductCard key={product.id} product={product}/>)}</div>:<EmptyState title="Your favourites belong here" href="/shop" label="Explore frames">Tap a heart to save a frame.</EmptyState>}</>}{view==='orders'&&(id?(data&&'number' in (data as object)?<OrderView order={data as Order} onChange={()=>setRevision(r=>r+1)}/>:<Loading/>):<><h1>Your orders.</h1>{orders?.items?.length?<div className="table-wrap"><table><thead><tr><th>Order</th><th>Date</th><th>Status</th><th>Total</th></tr></thead><tbody>{orders.items.map(order=><tr key={order.id}><td><Link href={`/account/orders/${order.id}`}>{order.number} →</Link></td><td>{new Date(order.createdAt).toLocaleDateString('en-GB')}</td><td><Status value={order.status}/></td><td>{money(order.total)}</td></tr>)}</tbody></table></div>:<EmptyState title="No orders yet" href="/shop" label="Find your frame"/>}<div className="pagination"><button disabled={page===1} onClick={()=>setPage(p=>p-1)}>Previous</button><span>{page}</span><button disabled={!orders||page*20>=orders.total} onClick={()=>setPage(p=>p+1)}>Next</button></div></>)}{view==='reviews'&&<><h1>Your reviews.</h1>{Array.isArray(reviews)&&reviews.length?reviews.map(review=><article className="rx-card" key={review.id}><h3>{review.product.name} · {review.rating}/5</h3><p>{review.body}</p><Status value={review.approved?'APPROVED':'PENDING'}/><button className="link-button" onClick={async()=>{try{await api(`reviews/${review.id}`,{method:'DELETE'});setRevision(r=>r+1);}catch(e){setError(errorMessage(e));}}}>Remove review</button></article>):<p>No reviews yet. Visit a product page to share your experience.</p>}</>}</>}</div></div></main>;
+"use client";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useCommerce } from "./commerce-provider";
+import { Alert, EmptyState, Loading, Status } from "./ui";
+import { ProductCard } from "./product-card";
+import { Addresses, Prescriptions, ProfileForm } from "./account-forms";
+import { OrderView } from "./order-view";
+import { api, errorMessage } from "@/lib/api";
+import { money, type PageResult } from "@/lib/catalog";
+import type { Order } from "@/lib/orders";
+const links = [
+  ["", "Overview"],
+  ["orders", "Orders"],
+  ["wishlist", "Wishlist"],
+  ["profile", "Profile & password"],
+  ["addresses", "Addresses"],
+  ["prescriptions", "Prescriptions"],
+  ["reviews", "My reviews"],
+];
+export function AccountDashboard() {
+  const pathname = usePathname();
+  const section = pathname.split("/").filter(Boolean).slice(1);
+  const { user, ready, logout, savedProducts } = useCommerce();
+  const [loaded, setLoaded] = useState<{ key: string; value: unknown } | null>(null),
+    [error, setError] = useState(""),
+    [revision, setRevision] = useState(0),
+    [page, setPage] = useState(1);
+  const view = section[0] ?? "",
+    id = section[1];
+  const endpoint = view === "orders" ? (id ? `orders/${id}` : `orders?page=${page}`) : view === "reviews" ? "reviews" : view === "" ? "notifications" : null;
+  const dataKey = `${user?.id}:${endpoint}`;
+  const data = loaded?.key === dataKey ? loaded.value : null;
+  useEffect(() => {
+    setPage(1);
+    setError("");
+  }, [pathname]);
+  useEffect(() => {
+    if (!user) return;
+    if (!endpoint) return;
+    let current = true;
+    void api<unknown>(endpoint)
+      .then((d) => {
+        if (current) {
+          setLoaded({ key: dataKey, value: d });
+          setError("");
+        }
+      })
+      .catch((e) => {
+        if (current) setError(errorMessage(e));
+      });
+    return () => {
+      current = false;
+    };
+  }, [endpoint, dataKey, user, revision]);
+  useEffect(() => {
+    if (view !== "orders" || !id) return;
+    const refresh = () => {
+      if (document.visibilityState === "visible") setRevision((value) => value + 1);
+    };
+    const timer = window.setInterval(refresh, 15000);
+    window.addEventListener("focus", refresh);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", refresh);
+    };
+  }, [view, id]);
+  if (!ready) return <Loading />;
+  if (!user)
+    return (
+      <main className="page-shell">
+        <EmptyState title="Your account, all in one place" href="/login" label="Sign in">
+          Track orders, save frames, and manage your prescriptions.
+        </EmptyState>
+      </main>
+    );
+  const orders = data as PageResult<Order> | null;
+  const reviews = data as
+    | {
+        id: string;
+        rating: number;
+        body: string;
+        approved: boolean;
+        product: { name: string };
+      }[]
+    | null;
+  const notifications = data as { id: string; title: string; createdAt: string }[] | null;
+  return (
+    <main className="account-layout">
+      <aside className="account-sidebar">
+        <div className="account-identity">
+          <span className="account-avatar" aria-hidden="true">
+            {user.name.slice(0, 1).toUpperCase()}
+          </span>
+          <div>
+            <p className="eyebrow">Your account</p>
+            <h2>Hello, {user.name.split(" ")[0]}.</h2>
+          </div>
+        </div>
+        <nav aria-label="Account navigation">
+          {links.map(([path, label]) => (
+            <Link key={path} scroll={false} href={`/account${path ? `/${path}` : ""}`} aria-current={view === path ? "page" : undefined}>
+              {label}
+            </Link>
+          ))}
+          {user.permissions.length > 0 && <Link href="/admin">Store administration ↗</Link>}
+          <button className="account-signout" onClick={() => void logout().catch((e) => setError(errorMessage(e)))}>
+            Sign out
+          </button>
+        </nav>
+      </aside>
+      <div className="account-content">
+        <div key={pathname} className="account-section">
+          {error && <Alert>{error}</Alert>}
+          {endpoint && data === null && !error ? (
+            <Loading />
+          ) : (
+            <>
+              {view === "" && (
+                <>
+                  <header className="account-welcome">
+                    <div>
+                      <p className="eyebrow">Account overview</p>
+                      <h1>Everything in one place.</h1>
+                      <p>Your orders, saved frames and personal details.</p>
+                    </div>
+                    <Link href="/shop" className="button button-outline">
+                      Browse eyewear <span aria-hidden="true">↗</span>
+                    </Link>
+                  </header>
+                  <div className="account-shortcuts">
+                    <Link href="/account/orders">
+                      <span className="account-card-symbol" aria-hidden="true">
+                        ↗
+                      </span>
+                      <h3>Your orders</h3>
+                      <p>Check your order status and delivery updates.</p>
+                      <span>View orders →</span>
+                    </Link>
+                    <Link href="/account/prescriptions">
+                      <span className="account-card-symbol" aria-hidden="true">
+                        ＋
+                      </span>
+                      <h3>Your prescriptions</h3>
+                      <p>Keep your eye-care records private and close.</p>
+                      <span>Manage records →</span>
+                    </Link>
+                  </div>
+                  <section className="account-updates">
+                    <div className="account-updates-heading">
+                      <h2>Latest updates</h2>
+                      <span>Activity</span>
+                    </div>
+                    {Array.isArray(notifications) && notifications.length ? (
+                      notifications.map((n) => (
+                        <p key={n.id}>
+                          {n.title} <small>{new Date(n.createdAt).toLocaleDateString("en-GB")}</small>
+                        </p>
+                      ))
+                    ) : (
+                      <p>You are all caught up.</p>
+                    )}
+                  </section>
+                </>
+              )}
+              {view === "profile" && <ProfileForm />}
+              {view === "addresses" && <Addresses />}
+              {view === "prescriptions" && <Prescriptions />}
+              {view === "wishlist" && (
+                <>
+                  <h1>Saved for later.</h1>
+                  {savedProducts.length ? (
+                    <div className="product-grid account-products">
+                      {savedProducts.map((product) => (
+                        <ProductCard key={product.id} product={product} />
+                      ))}
+                    </div>
+                  ) : (
+                    <EmptyState title="Your favourites belong here" href="/shop" label="Explore frames">
+                      Tap a heart to save a frame.
+                    </EmptyState>
+                  )}
+                </>
+              )}
+              {view === "orders" &&
+                (id ? (
+                  data && "number" in (data as object) ? (
+                    <OrderView order={data as Order} onChange={() => setRevision((r) => r + 1)} />
+                  ) : (
+                    <Loading />
+                  )
+                ) : (
+                  <>
+                    <h1>Your orders.</h1>
+                    {orders?.items?.length ? (
+                      <div className="table-wrap">
+                        <table>
+                          <thead>
+                            <tr>
+                              <th>Order</th>
+                              <th>Date</th>
+                              <th>Status</th>
+                              <th>Total</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {orders.items.map((order) => (
+                              <tr key={order.id}>
+                                <td>
+                                  <Link href={`/account/orders/${order.id}`}>{order.number} →</Link>
+                                </td>
+                                <td>{new Date(order.createdAt).toLocaleDateString("en-GB")}</td>
+                                <td>
+                                  <Status value={order.status} />
+                                </td>
+                                <td>{money(order.total)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <EmptyState title="No orders yet" href="/shop" label="Find your frame" />
+                    )}
+                    <div className="pagination">
+                      <button disabled={page === 1} onClick={() => setPage((p) => p - 1)}>
+                        Previous
+                      </button>
+                      <span>{page}</span>
+                      <button disabled={!orders || page * 20 >= orders.total} onClick={() => setPage((p) => p + 1)}>
+                        Next
+                      </button>
+                    </div>
+                  </>
+                ))}
+              {view === "reviews" && (
+                <>
+                  <h1>Your reviews.</h1>
+                  {Array.isArray(reviews) && reviews.length ? (
+                    reviews.map((review) => (
+                      <article className="rx-card" key={review.id}>
+                        <h3>
+                          {review.product.name} · {review.rating}/5
+                        </h3>
+                        <p>{review.body}</p>
+                        <Status value={review.approved ? "APPROVED" : "PENDING"} />
+                        <button
+                          className="link-button"
+                          onClick={async () => {
+                            try {
+                              await api(`reviews/${review.id}`, {
+                                method: "DELETE",
+                              });
+                              setRevision((r) => r + 1);
+                            } catch (e) {
+                              setError(errorMessage(e));
+                            }
+                          }}
+                        >
+                          Remove review
+                        </button>
+                      </article>
+                    ))
+                  ) : (
+                    <p>No reviews yet. Visit a product page to share your experience.</p>
+                  )}
+                </>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    </main>
+  );
 }

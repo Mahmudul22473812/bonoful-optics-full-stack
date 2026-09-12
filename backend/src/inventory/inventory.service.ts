@@ -21,7 +21,6 @@ export class InventoryService {
     const data=z.object({variantId:z.string(),quantity:z.number().int().min(-100000).max(100000).refine(q=>q!==0),reason:z.string().trim().min(5).max(500),type:z.enum(['ADJUSTMENT','DAMAGE','LOSS','RETURN','RECEIPT']).default('ADJUSTMENT')}).strict().parse(body);
     if(['DAMAGE','LOSS'].includes(data.type)&&data.quantity>0) throw new BadRequestException('Damage and loss must reduce stock.');
     if(['RETURN','RECEIPT'].includes(data.type)&&data.quantity<0) throw new BadRequestException('Returns and receipts must add stock.');
-    return this.db.atomic(async(tx)=>{const result=await this.move(tx,data.variantId,data.quantity,0,data.type,data.reason,actorId);await tx.auditLog.create({data:{actorId,action:'inventory.adjust',entity:'variant',entityId:data.variantId,detail:{...data}}});return result;});
+    return this.db.atomic(async(tx)=>{const variant=await tx.productVariant.findUniqueOrThrow({where:{id:data.variantId},select:{sku:true,product:{select:{name:true}}}});const result=await this.move(tx,data.variantId,data.quantity,0,data.type,data.reason,actorId);await tx.auditLog.create({data:{actorId,action:'inventory.adjust',entity:'variant',entityId:data.variantId,detail:{productName:variant.product.name,sku:variant.sku,before:result.onHand-data.quantity,after:result.onHand,quantity:data.quantity,type:data.type,reason:data.reason}}});return result;});
   }
 }
-

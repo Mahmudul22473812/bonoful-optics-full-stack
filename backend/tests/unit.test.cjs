@@ -3,9 +3,10 @@ const assert = require('node:assert/strict');
 process.env.DATABASE_URL = 'postgresql://test:test@localhost/test';
 process.env.DATA_KEY = 'a'.repeat(64);
 process.env.NODE_ENV = 'test';
-const { calculateTotals, transitions } = require('../dist/src/commerce/calculations');
+const { calculateTotals, transitions, reachableOrderStatuses } = require('../dist/src/commerce/calculations');
 const { encrypt, decrypt, digest, matches, token } = require('../dist/src/core/security');
 const { normalizeImage } = require('../dist/src/core/image-upload');
+const { inventoryMatchesStatus } = require('../dist/src/admin/admin-query.service');
 const { generateVerificationOtp, verificationOtpHash, verificationOtpMatches } = require('../dist/src/auth/auth.service');
 const sharp = require('sharp');
 
@@ -33,6 +34,17 @@ test('terminal orders cannot reopen or ship twice', () => {
   assert.deepEqual(transitions.CANCELLED,[]);
   assert.deepEqual(transitions.REFUNDED,[]);
   assert.deepEqual(transitions.SHIPPED,['DELIVERED']);
+});
+test('administrators can choose safe forward order statuses without allowing backwards transitions', () => {
+  assert.deepEqual(reachableOrderStatuses('PENDING'),['CONFIRMED','PROCESSING','READY','SHIPPED','DELIVERED','REFUNDED','CANCELLED']);
+  assert.deepEqual(reachableOrderStatuses('SHIPPED'),['DELIVERED','REFUNDED']);
+  assert.equal(reachableOrderStatuses('PROCESSING').includes('PENDING'),false);
+});
+test('inventory dashboard filters keep low and out-of-stock products separate', () => {
+  assert.equal(inventoryMatchesStatus(0,0,3,'out'),true);
+  assert.equal(inventoryMatchesStatus(0,0,3,'low'),false);
+  assert.equal(inventoryMatchesStatus(3,1,3,'low'),true);
+  assert.equal(inventoryMatchesStatus(5,1,3,'low'),false);
 });
 test('private data encryption round-trips and rejects tampering', () => {
   const value = JSON.stringify({od:{sph:-1.25},pd:62});

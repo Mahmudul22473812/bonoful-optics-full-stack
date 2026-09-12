@@ -14,3 +14,9 @@ export function calculateTotals(lines:{unitPrice:number;quantity:number;eligible
 }
 export const transitions:Record<string,string[]>={PENDING:['CONFIRMED','CANCELLED'],CONFIRMED:['PROCESSING','CANCELLED'],PROCESSING:['READY','CANCELLED'],READY:['SHIPPED','CANCELLED'],SHIPPED:['DELIVERED'],DELIVERED:['REFUNDED'],CANCELLED:[],REFUNDED:[]};
 
+export function reachableOrderStatuses(status:string) {
+  const found:string[]=[];
+  const visit=(current:string)=>{for(const next of transitions[current]??[])if(!found.includes(next)){found.push(next);visit(next);}};
+  visit(status);
+  return found;
+}

@@ -7,7 +7,7 @@ import { InventoryService } from '../inventory/inventory.service';
 import { NotificationService } from '../core/notification.service';
 import { AuthRequest } from '../core/auth.guard';
 import { config } from '../core/config';
-import { calculateTotals, transitions } from './calculations';
+import { calculateTotals, reachableOrderStatuses } from './calculations';
 import { CheckoutDto } from './order.dto';
 
 export const orderInclude={items:true,histories:{orderBy:{createdAt:'asc'},select:{status:true,note:true,createdAt:true}},payments:{select:{id:true,status:true,provider:true,amount:true,refunds:true}}} satisfies Prisma.OrderInclude;
@@ -60,18 +60,19 @@ export class OrderService {
       const order=await tx.order.findFirst({where:{id,...(customer?{userId:actorId}:{})},include:{items:true,user:true,payments:true}});
       if(!order) throw new NotFoundException('Order not found.');
       if(customer && (status!=='CANCELLED'||!['PENDING','CONFIRMED'].includes(order.status))) throw new BadRequestException('This order can no longer be cancelled online.');
-      if(!transitions[order.status]?.includes(status)) throw new BadRequestException(`Cannot change ${order.status} to ${status}.`);
+      if(!reachableOrderStatuses(order.status).includes(status)) throw new BadRequestException(`Cannot change ${order.status} to ${status}.`);
       if(status==='REFUNDED' && !data.note) throw new BadRequestException('A refund reason is required.');
+      const fulfilsNow=['SHIPPED','DELIVERED','REFUNDED'].includes(status)&&!['SHIPPED','DELIVERED','REFUNDED'].includes(order.status);
       for(const item of [...order.items].sort((a,b)=>a.variantId.localeCompare(b.variantId))) {
         if(status==='CANCELLED') await this.inventory.move(tx,item.variantId,0,-item.quantity,'RELEASE','Order cancelled',actorId,id);
-        if(status==='SHIPPED') await this.inventory.move(tx,item.variantId,-item.quantity,-item.quantity,'SHIPMENT','Order fulfilled',actorId,id);
+        if(fulfilsNow) await this.inventory.move(tx,item.variantId,-item.quantity,-item.quantity,'SHIPMENT','Order fulfilled',actorId,id);
         if(status==='REFUNDED'&&data.restock) await this.inventory.move(tx,item.variantId,item.quantity,0,'RETURN',data.note!,actorId,id);
       }
       if(status==='CANCELLED') {await tx.couponUsage.deleteMany({where:{orderId:id}});await tx.payment.updateMany({where:{orderId:id,status:'PENDING'},data:{status:'CANCELLED'}});}
       if(status==='DELIVERED') await tx.payment.updateMany({where:{orderId:id,provider:'COD',status:'PENDING'},data:{status:'PAID'}});
       if(status==='REFUNDED') { const payment=order.payments.find(p=>p.status==='PAID');if(!payment)throw new BadRequestException('No settled payment to refund.');await tx.refund.create({data:{paymentId:payment.id,amount:payment.amount,reason:data.note!,restocked:data.restock,status:'REQUESTED'}});await tx.payment.update({where:{id:payment.id},data:{status:'REFUND_PENDING'}}); }
       await tx.order.update({where:{id},data:{status,trackingNumber:data.trackingNumber,histories:{create:{status,note:data.note??'Status updated',actorId}}}});
-      await tx.auditLog.create({data:{actorId,action:'orders.status',entity:'order',entityId:id,detail:{from:order.status,to:status,restock:data.restock}}});
+      await tx.auditLog.create({data:{actorId,action:'orders.status',entity:'order',entityId:id,detail:{orderNumber:order.number,from:order.status,to:status,restock:data.restock}}});
       await this.notifications.enqueue(tx,order.user.email,`${order.number}: ${status.toLowerCase()}`,`Your order status is now ${status.toLowerCase()}.`,order.userId);
       return orderView(await tx.order.findUniqueOrThrow({where:{id},include:orderInclude}));
     });

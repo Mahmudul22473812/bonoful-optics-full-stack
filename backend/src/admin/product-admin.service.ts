@@ -19,6 +19,7 @@ export class ProductAdminService {
   async save(body:unknown,actorId:string,id?:string) {
     const {variants,images,...data}=productSchema.parse(body);
     return this.db.atomic(async(tx)=>{
+      const previous=id?await tx.product.findUniqueOrThrow({where:{id},select:{name:true,categoryId:true,brandId:true}}):null;
       const product=id?await tx.product.update({where:{id},data}):await tx.product.create({data});
       const ids:string[]=[];
       for(const variant of variants) {
@@ -30,7 +31,7 @@ export class ProductAdminService {
       await tx.productVariant.updateMany({where:{productId:product.id,id:{notIn:ids}},data:{active:false}});
       await tx.productImage.deleteMany({where:{productId:product.id}});
       if(images.length) await tx.productImage.createMany({data:images.map((image,position)=>({...image,position,productId:product.id}))});
-      await tx.auditLog.create({data:{actorId,action:id?'products.update':'products.create',entity:'product',entityId:product.id}});
+      await tx.auditLog.create({data:{actorId,action:id?'products.update':'products.create',entity:'product',entityId:product.id,detail:{productName:product.name,previousCategoryId:previous?.categoryId,newCategoryId:product.categoryId,previousBrandId:previous?.brandId,newBrandId:product.brandId}}});
       return product;
     });
   }

@@ -3458,16 +3458,30 @@ textarea {
   background: #f8faf7;
 }
 .product-image-row {
-  grid-template-columns: 110px 105px minmax(0, 1fr) minmax(
-      160px,
-      0.8fr
-    ) auto auto;
-  align-items: end;
+  grid-template-columns: 110px 125px minmax(220px, 1fr) minmax(190px, 0.8fr) auto auto;
+  align-items: center;
   margin-bottom: 12px;
   padding: 12px;
   border: 1px solid var(--line);
   border-radius: 10px;
   background: #fbfcfa;
+}
+.product-image-row > label {
+  min-width: 0;
+  align-self: center;
+}
+.product-image-row > label input,
+.product-image-row > label select {
+  width: 100%;
+}
+.product-image-row > label small {
+  display: block;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.product-image-row > .link-button {
+  align-self: center;
+  white-space: nowrap;
 }
 .product-image-preview {
   width: 110px;

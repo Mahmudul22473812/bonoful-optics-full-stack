@@ -1,51 +1,789 @@
-'use client';
-import Link from 'next/link';
-import {AdminNavigation} from './admin-navigation';
-import {usePathname} from 'next/navigation';
-import {useEffect,useState} from 'react';
-import {useCommerce} from '../commerce-provider';
-import {Alert,EmptyState,Loading,Status} from '../ui';
-import {OrderView} from '../order-view';
-import {PrescriptionDisplay,type RxRecord} from '../account-forms';
-import {api,errorMessage,send} from '@/lib/api';
-import {money} from '@/lib/catalog';
-import type {Order} from '@/lib/orders';
-import {ProductEditor,type EditableProduct} from './product-editor';
-import {ResourceEditor,RoleEditor,arr,obj,str,type Row} from './resource-editor';
-import {StockEditor,PurchaseEditor} from './inventory-editors';
-type Nav={path:string;label:string;permission:string;group:string};
-const nav:Nav[]=[{path:'',label:'Overview',permission:'reports.read',group:'STORE'},{path:'orders',label:'Orders',permission:'orders.read',group:'STORE'},{path:'products',label:'Products',permission:'products.read',group:'CATALOG'},{path:'categories',label:'Categories',permission:'products.update',group:'CATALOG'},{path:'brands',label:'Brands',permission:'products.update',group:'CATALOG'},{path:'inventory',label:'Inventory',permission:'inventory.read',group:'OPERATIONS'},{path:'movements',label:'Stock history',permission:'inventory.read',group:'OPERATIONS'},{path:'purchase-orders',label:'Purchase orders',permission:'purchases.read',group:'OPERATIONS'},{path:'suppliers',label:'Suppliers',permission:'purchases.read',group:'OPERATIONS'},{path:'customers',label:'Customers',permission:'customers.read',group:'RELATIONSHIPS'},{path:'coupons',label:'Promotions',permission:'promotions.manage',group:'RELATIONSHIPS'},{path:'reviews',label:'Reviews',permission:'reviews.moderate',group:'RELATIONSHIPS'},{path:'staff',label:'Team members',permission:'users.manage',group:'SETTINGS'},{path:'roles',label:'Roles & permissions',permission:'users.manage',group:'SETTINGS'},{path:'audit',label:'Audit log',permission:'audit.read',group:'SETTINGS'}];
-type Column={label:string;render:(row:Row)=>React.ReactNode};
-const date=(value:unknown)=>value?new Date(str(value)).toLocaleDateString('en-GB'):'—';
-const price=(value:unknown)=>money(Number(value??0));
-const columns:Record<string,Column[]>={
- products:[{label:'Product',render:r=><><strong>{str(r.name)}</strong><small>{str(obj(r.brand).name)} · {str(obj(r.category).name)}</small></>},{label:'SKU / variants',render:r=><>{str(arr(r.variants)[0]?.sku)}<small>{arr(r.variants).length} variant(s)</small></>},{label:'Price',render:r=>price(arr(r.variants)[0]?.price)},{label:'Status',render:r=><Status value={r.active?'ACTIVE':'INACTIVE'}/>}],
- inventory:[{label:'Frame / SKU',render:r=><><strong>{str(obj(obj(r.variant).product).name)}</strong><small>{str(obj(r.variant).sku)}</small></>},{label:'On hand',render:r=>str(r.onHand)},{label:'Reserved',render:r=>str(r.reserved)},{label:'Available',render:r=><strong className={Number(r.available)<=Number(r.lowThreshold)?'danger':''}>{str(r.available)}</strong>},{label:'Threshold',render:r=>str(r.lowThreshold)}],
- movements:[{label:'SKU',render:r=>str(obj(obj(r.inventory).variant).sku)},{label:'Movement',render:r=><Status value={str(r.type)}/>},{label:'Stock',render:r=>`${r.before} → ${r.after} (${Number(r.change)>0?'+':''}${r.change})`},{label:'Reserved',render:r=>`${r.reservedBefore} → ${r.reservedAfter}`},{label:'Reason / actor',render:r=><>{str(r.reason)}<small>{str(obj(r.actor).name)||'System'} · {date(r.createdAt)}</small></>}],
- orders:[{label:'Order',render:r=><><strong>{str(r.number)}</strong><small>{str(obj(r.user).name)}</small></>},{label:'Date',render:r=>date(r.createdAt)},{label:'Status',render:r=><Status value={str(r.status)}/>},{label:'Total',render:r=>price(r.total)}],
- suppliers:[{label:'Supplier',render:r=><strong>{str(r.name)}</strong>},{label:'Contact',render:r=><>{str(r.email)}<small>{str(r.phone)}</small></>},{label:'Address',render:r=>str(r.address)},{label:'Status',render:r=><Status value={r.active?'ACTIVE':'INACTIVE'}/>}],
- 'purchase-orders':[{label:'Purchase',render:r=><><strong>{str(r.number)}</strong><small>{str(obj(r.supplier).name)}</small></>},{label:'Expected',render:r=>date(r.expectedAt)},{label:'Status',render:r=><Status value={str(r.status)}/>},{label:'Received',render:r=>`${arr(r.items).reduce((n,i)=>n+Number(i.received),0)} / ${arr(r.items).reduce((n,i)=>n+Number(i.quantity),0)}`},{label:'Cost',render:r=>price(arr(r.items).reduce((n,i)=>n+Number(i.unitCost)*Number(i.quantity),0))}],
- customers:[{label:'Customer',render:r=><><strong>{str(r.name)}</strong><small>{str(r.email)}</small></>},{label:'Phone',render:r=>str(r.phone)||'—'},{label:'Orders',render:r=>str(obj(r._count).orders)},{label:'Status',render:r=><Status value={r.active?'ACTIVE':'INACTIVE'}/>}],
- staff:[{label:'Team member',render:r=><><strong>{str(r.name)}</strong><small>{str(r.email)}</small></>},{label:'Role',render:r=>str(obj(r.role).name)},{label:'Status',render:r=><Status value={r.active?'ACTIVE':'INACTIVE'}/>}],
- roles:[{label:'Role',render:r=><strong>{str(r.name)}</strong>},{label:'Permissions',render:r=><span className="permission-summary">{arr(r.permissions).map(p=>str(p.permissionId)).join(', ')||'Customer-owned records only'}</span>}],
- coupons:[{label:'Code',render:r=><strong>{str(r.code)}</strong>},{label:'Discount',render:r=>r.type==='PERCENT'?`${r.value}%`:price(r.value)},{label:'Minimum',render:r=>price(r.minimum)},{label:'Usage',render:r=>`${str(obj(r._count).usages)} / ${r.usageLimit}`},{label:'Expires',render:r=>date(r.endsAt)},{label:'Status',render:r=><Status value={r.active?'ACTIVE':'INACTIVE'}/>}],
- reviews:[{label:'Product / customer',render:r=><>{str(obj(r.product).name)}<small>{str(obj(r.user).name)}</small></>},{label:'Review',render:r=><><strong>{str(r.rating)}/5</strong><p>{str(r.body)}</p></>},{label:'Status',render:r=><Status value={r.approved?'APPROVED':'PENDING'}/>}],
- audit:[{label:'Action',render:r=><strong>{str(r.action)}</strong>},{label:'Record',render:r=><>{str(r.entity)}<small>{str(r.entityId)}</small></>},{label:'Actor',render:r=>str(obj(r.actor).name)||'System'},{label:'Date',render:r=>date(r.createdAt)}],
- appointments:[{label:'Customer',render:r=><>{str(r.name)}<small>{str(r.email)} · {str(r.phone)}</small></>},{label:'Service',render:r=>str(r.service)},{label:'Preferred date',render:r=>date(r.preferredAt)},{label:'Status',render:r=><Status value={str(r.status)}/>}],
- categories:[{label:'Category',render:r=><strong>{str(r.name)}</strong>},{label:'URL slug',render:r=>str(r.slug)}],brands:[{label:'Brand',render:r=><strong>{str(r.name)}</strong>},{label:'URL slug',render:r=>str(r.slug)}],
+"use client";
+import Link from "next/link";
+import { AdminNavigation } from "./admin-navigation";
+import { usePathname, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useCommerce } from "../commerce-provider";
+import { Alert, EmptyState, Loading, Status } from "../ui";
+import { OrderView } from "../order-view";
+import { PrescriptionDisplay, type RxRecord } from "../account-forms";
+import { api, errorMessage, send } from "@/lib/api";
+import { money } from "@/lib/catalog";
+import type { Order } from "@/lib/orders";
+import { ProductEditor, type EditableProduct } from "./product-editor";
+import { ResourceEditor, RoleEditor, arr, obj, str, type Row } from "./resource-editor";
+import { StockEditor, PurchaseEditor } from "./inventory-editors";
+type Nav = { path: string; label: string; permission: string; group: string };
+const nav: Nav[] = [
+  { path: "", label: "Overview", permission: "reports.read", group: "STORE" },
+  {
+    path: "orders",
+    label: "Orders",
+    permission: "orders.read",
+    group: "STORE",
+  },
+  {
+    path: "products",
+    label: "Products",
+    permission: "products.read",
+    group: "CATALOG",
+  },
+  {
+    path: "categories",
+    label: "Categories",
+    permission: "products.update",
+    group: "CATALOG",
+  },
+  {
+    path: "brands",
+    label: "Brands",
+    permission: "products.update",
+    group: "CATALOG",
+  },
+  {
+    path: "inventory",
+    label: "Inventory",
+    permission: "inventory.read",
+    group: "OPERATIONS",
+  },
+  {
+    path: "movements",
+    label: "Stock history",
+    permission: "inventory.read",
+    group: "OPERATIONS",
+  },
+  {
+    path: "purchase-orders",
+    label: "Purchase orders",
+    permission: "purchases.read",
+    group: "OPERATIONS",
+  },
+  {
+    path: "suppliers",
+    label: "Suppliers",
+    permission: "purchases.read",
+    group: "OPERATIONS",
+  },
+  {
+    path: "customers",
+    label: "Customers",
+    permission: "customers.read",
+    group: "RELATIONSHIPS",
+  },
+  {
+    path: "coupons",
+    label: "Promotions",
+    permission: "promotions.manage",
+    group: "RELATIONSHIPS",
+  },
+  {
+    path: "reviews",
+    label: "Reviews",
+    permission: "reviews.moderate",
+    group: "RELATIONSHIPS",
+  },
+  {
+    path: "staff",
+    label: "Team members",
+    permission: "users.manage",
+    group: "SETTINGS",
+  },
+  {
+    path: "roles",
+    label: "Roles & permissions",
+    permission: "users.manage",
+    group: "SETTINGS",
+  },
+  {
+    path: "audit",
+    label: "Audit log",
+    permission: "audit.read",
+    group: "SETTINGS",
+  },
+];
+type Column = { label: string; render: (row: Row) => React.ReactNode };
+const date = (value: unknown) => (value ? new Date(str(value)).toLocaleDateString("en-GB") : "—");
+const price = (value: unknown) => money(Number(value ?? 0));
+const columns: Record<string, Column[]> = {
+  products: [
+    {
+      label: "Product",
+      render: (r) => (
+        <>
+          <strong>{str(r.name)}</strong>
+          <small>
+            {str(obj(r.brand).name)} · {str(obj(r.category).name)}
+          </small>
+        </>
+      ),
+    },
+    {
+      label: "SKU / variants",
+      render: (r) => (
+        <>
+          {str(arr(r.variants)[0]?.sku)}
+          <small>{arr(r.variants).length} variant(s)</small>
+        </>
+      ),
+    },
+    { label: "Price", render: (r) => price(arr(r.variants)[0]?.price) },
+    {
+      label: "Status",
+      render: (r) => <Status value={r.active ? "ACTIVE" : "INACTIVE"} />,
+    },
+  ],
+  inventory: [
+    {
+      label: "Frame / SKU",
+      render: (r) => (
+        <>
+          <strong>{str(obj(obj(r.variant).product).name)}</strong>
+          <small>{str(obj(r.variant).sku)}</small>
+        </>
+      ),
+    },
+    { label: "On hand", render: (r) => str(r.onHand) },
+    { label: "Reserved", render: (r) => str(r.reserved) },
+    {
+      label: "Available",
+      render: (r) => <strong className={Number(r.available) <= Number(r.lowThreshold) ? "danger" : ""}>{str(r.available)}</strong>,
+    },
+    { label: "Threshold", render: (r) => str(r.lowThreshold) },
+  ],
+  movements: [
+    { label: "SKU", render: (r) => str(obj(obj(r.inventory).variant).sku) },
+    { label: "Movement", render: (r) => <Status value={str(r.type)} /> },
+    {
+      label: "Stock",
+      render: (r) => `${r.before} → ${r.after} (${Number(r.change) > 0 ? "+" : ""}${r.change})`,
+    },
+    {
+      label: "Reserved",
+      render: (r) => `${r.reservedBefore} → ${r.reservedAfter}`,
+    },
+    {
+      label: "Reason / actor",
+      render: (r) => (
+        <>
+          {str(r.reason)}
+          <small>
+            {str(obj(r.actor).name) || "System"} · {date(r.createdAt)}
+          </small>
+        </>
+      ),
+    },
+  ],
+  orders: [
+    {
+      label: "Order",
+      render: (r) => (
+        <>
+          <strong>{str(r.number)}</strong>
+          <small>{str(obj(r.user).name)}</small>
+        </>
+      ),
+    },
+    { label: "Date", render: (r) => date(r.createdAt) },
+    { label: "Status", render: (r) => <Status value={str(r.status)} /> },
+    { label: "Total", render: (r) => price(r.total) },
+  ],
+  suppliers: [
+    { label: "Supplier", render: (r) => <strong>{str(r.name)}</strong> },
+    {
+      label: "Contact",
+      render: (r) => (
+        <>
+          {str(r.email)}
+          <small>{str(r.phone)}</small>
+        </>
+      ),
+    },
+    { label: "Address", render: (r) => str(r.address) },
+    {
+      label: "Status",
+      render: (r) => <Status value={r.active ? "ACTIVE" : "INACTIVE"} />,
+    },
+  ],
+  "purchase-orders": [
+    {
+      label: "Purchase",
+      render: (r) => (
+        <>
+          <strong>{str(r.number)}</strong>
+          <small>{str(obj(r.supplier).name)}</small>
+        </>
+      ),
+    },
+    { label: "Expected", render: (r) => date(r.expectedAt) },
+    { label: "Status", render: (r) => <Status value={str(r.status)} /> },
+    {
+      label: "Received",
+      render: (r) => `${arr(r.items).reduce((n, i) => n + Number(i.received), 0)} / ${arr(r.items).reduce((n, i) => n + Number(i.quantity), 0)}`,
+    },
+    {
+      label: "Cost",
+      render: (r) => price(arr(r.items).reduce((n, i) => n + Number(i.unitCost) * Number(i.quantity), 0)),
+    },
+  ],
+  customers: [
+    {
+      label: "Customer",
+      render: (r) => (
+        <>
+          <strong>{str(r.name)}</strong>
+          <small>{str(r.email)}</small>
+        </>
+      ),
+    },
+    { label: "Phone", render: (r) => str(r.phone) || "—" },
+    { label: "Orders", render: (r) => str(obj(r._count).orders) },
+    {
+      label: "Status",
+      render: (r) => <Status value={r.active ? "ACTIVE" : "INACTIVE"} />,
+    },
+  ],
+  staff: [
+    {
+      label: "Team member",
+      render: (r) => (
+        <>
+          <strong>{str(r.name)}</strong>
+          <small>{str(r.email)}</small>
+        </>
+      ),
+    },
+    { label: "Role", render: (r) => str(obj(r.role).name) },
+    {
+      label: "Status",
+      render: (r) => <Status value={r.active ? "ACTIVE" : "INACTIVE"} />,
+    },
+  ],
+  roles: [
+    { label: "Role", render: (r) => <strong>{str(r.name)}</strong> },
+    {
+      label: "Permissions",
+      render: (r) => (
+        <span className="permission-summary">
+          {arr(r.permissions)
+            .map((p) => str(p.permissionId))
+            .join(", ") || "Customer-owned records only"}
+        </span>
+      ),
+    },
+  ],
+  coupons: [
+    { label: "Code", render: (r) => <strong>{str(r.code)}</strong> },
+    {
+      label: "Discount",
+      render: (r) => (r.type === "PERCENT" ? `${r.value}%` : price(r.value)),
+    },
+    { label: "Minimum", render: (r) => price(r.minimum) },
+    {
+      label: "Usage",
+      render: (r) => `${str(obj(r._count).usages)} / ${r.usageLimit}`,
+    },
+    { label: "Expires", render: (r) => date(r.endsAt) },
+    {
+      label: "Status",
+      render: (r) => <Status value={r.active ? "ACTIVE" : "INACTIVE"} />,
+    },
+  ],
+  reviews: [
+    {
+      label: "Product / customer",
+      render: (r) => (
+        <>
+          {str(obj(r.product).name)}
+          <small>{str(obj(r.user).name)}</small>
+        </>
+      ),
+    },
+    {
+      label: "Review",
+      render: (r) => (
+        <>
+          <strong>{str(r.rating)}/5</strong>
+          <p>{str(r.body)}</p>
+        </>
+      ),
+    },
+    {
+      label: "Status",
+      render: (r) => <Status value={r.approved ? "APPROVED" : "PENDING"} />,
+    },
+  ],
+  audit: [
+    {
+      label: "Activity",
+      render: (r) => (
+        <>
+          <strong>{str(r.description) || str(r.action)}</strong>
+          <small>{str(r.resourceLabel)}</small>
+        </>
+      ),
+    },
+    {
+      label: "Actor",
+      render: (r) => (
+        <>
+          {str(obj(r.actor).name) || "System"}
+          <small>{str(obj(obj(r.actor).role).name)}</small>
+        </>
+      ),
+    },
+    {
+      label: "Date",
+      render: (r) => new Date(str(r.createdAt)).toLocaleString("en-GB"),
+    },
+  ],
+  appointments: [
+    {
+      label: "Customer",
+      render: (r) => (
+        <>
+          {str(r.name)}
+          <small>
+            {str(r.email)} · {str(r.phone)}
+          </small>
+        </>
+      ),
+    },
+    { label: "Service", render: (r) => str(r.service) },
+    { label: "Preferred date", render: (r) => date(r.preferredAt) },
+    { label: "Status", render: (r) => <Status value={str(r.status)} /> },
+  ],
+  categories: [
+    { label: "Category", render: (r) => <strong>{str(r.name)}</strong> },
+    { label: "URL slug", render: (r) => str(r.slug) },
+  ],
+  brands: [
+    { label: "Brand", render: (r) => <strong>{str(r.name)}</strong> },
+    { label: "URL slug", render: (r) => str(r.slug) },
+  ],
 };
-const createPermission:Record<string,string>={products:'products.create',suppliers:'purchases.manage','purchase-orders':'purchases.manage',categories:'products.update',brands:'products.update',coupons:'promotions.manage',staff:'users.manage',roles:'users.manage'};
-export function AdminDashboard(){
- const pathname=usePathname();const section=pathname.split('/').filter(Boolean).slice(1);
- const {user,ready,logout}=useCommerce();const view=section[0]??'',id=section[1];const [loaded,setLoaded]=useState<{key:string;value:unknown}|null>(null),[error,setError]=useState(''),[q,setQ]=useState(''),[page,setPage]=useState(1),[status,setStatus]=useState(''),[revision,setRevision]=useState(0),[editor,setEditor]=useState<{kind:string;row?:Row}|null>(null),[selected,setSelected]=useState<string[]>([]);
- const dataKey=`${view}/${id??''}`;const data=loaded?.key===dataKey?loaded.value:null;
- useEffect(()=>{setQ('');setPage(1);setStatus('');setSelected([]);setEditor(null);setError('');},[dataKey]);
- const can=(permission:string)=>!!user?.permissions.includes(permission);const allowed=view==='prescriptions'?can('prescriptions.read'):can(nav.find(n=>n.path===view)?.permission??'reports.read');
- useEffect(()=>{if(!user||!allowed)return;let live=true;const timer=setTimeout(()=>{let endpoint=['categories','brands'].includes(view)?view:view==='prescriptions'?`prescriptions/${id}`:`admin${view?`/${view}`:''}${id?`/${id}`:''}`;endpoint+=`?q=${encodeURIComponent(q)}&page=${page}${status?`&status=${status}`:''}`;void api<unknown>(endpoint).then(d=>{if(live){setLoaded({key:`${view}/${id??''}`,value:d});setError('');}}).catch(e=>{if(live)setError(errorMessage(e));});},200);return()=>{live=false;clearTimeout(timer);};},[view,id,q,page,status,revision,user,allowed]);
- function saved(){setEditor(null);setRevision(v=>v+1);}
- async function act(path:string,body:unknown,method='POST'){try{await send(path,body,method);setRevision(v=>v+1);}catch(e){setError(errorMessage(e));}}
- if(!ready)return <Loading/>;if(!user)return <main className="page-shell"><EmptyState title="Store administration" href="/login?returnTo=/admin" label="Staff sign in">Sign in with your authorised staff account.</EmptyState></main>;if(!allowed)return <main className="page-shell"><EmptyState title="Access restricted" href="/account" label="Back to account">Your account does not have permission to access this area.</EmptyState></main>;
- const rows=Array.isArray(data)?data as Row[]:arr(obj(data).items);const total=Number(obj(data).total??rows.length);const stats=obj(data);const detail=!!id;const title=nav.find(n=>n.path===view)?.label??'Prescription';
- function actions(row:Row){return <div className="row-actions">{view==='products'&&<>{can('products.update')&&<button onClick={async()=>{try{setEditor({kind:'products',row:await api<Row>(`admin/products/${row.id}`)});}catch(e){setError(errorMessage(e));}}}>Edit</button>}{can('products.delete')&&<button onClick={()=>{if(window.confirm(`Archive ${str(row.name)}? Historical orders are preserved.`))void act(`admin/products/${row.id}`,{},'DELETE');}}>Archive</button>}</>}{view==='inventory'&&can('inventory.adjust')&&<button onClick={()=>setEditor({kind:'inventory',row})}>Adjust</button>}{view==='orders'&&<Link href={`/admin/orders/${row.id}`}>Open →</Link>}{view==='customers'&&<><Link href={`/admin/customers/${row.id}`}>Details →</Link>{can('customers.manage')&&<button onClick={()=>void act(`admin/customers/${row.id}`,{active:!row.active},'PATCH')}>{row.active?'Deactivate':'Activate'}</button>}</>}{['suppliers','coupons','staff','categories','brands'].includes(view)&&can(createPermission[view])&&<button onClick={()=>setEditor({kind:view,row})} disabled={view==='staff'&&row.id===user?.id}>Edit</button>}{view==='roles'&&!['super_admin','customer'].includes(str(row.id))&&<button onClick={()=>setEditor({kind:'roles',row})}>Permissions</button>}{view==='purchase-orders'&&can('purchases.manage')&&<>{['ORDERED','PARTIALLY_RECEIVED'].includes(str(row.status))&&<button onClick={()=>setEditor({kind:'receive',row})}>Receive</button>}{row.status==='DRAFT'&&<button onClick={()=>void act(`admin/purchase-orders/${row.id}/status`,{status:'ORDERED'})}>Mark ordered</button>}{['ORDERED','DRAFT'].includes(str(row.status))&&<button onClick={()=>{if(window.confirm('Cancel this purchase order?'))void act(`admin/purchase-orders/${row.id}/status`,{status:'CANCELLED'});}}>Cancel</button>}</>}{view==='reviews'&&<button onClick={()=>void act(`admin/reviews/${row.id}`,{approved:!row.approved},'PATCH')}>{row.approved?'Hide':'Approve'}</button>}{view==='appointments'&&can('orders.update')&&<select aria-label="Appointment status" value={str(row.status)} onChange={e=>void act(`admin/appointments/${row.id}`,{status:e.target.value},'PATCH')}><option>REQUESTED</option><option>CONFIRMED</option><option>COMPLETED</option><option>CANCELLED</option></select>}</div>;}
- return <div className="admin-layout"><aside className="admin-sidebar"><Link href="/admin" className="brand"><span className="brand-mark">BO</span><span>Bonoful <em>Optics</em></span></Link><p className="eyebrow">Store management</p><AdminNavigation items={nav.filter(n=>can(n.permission))} view={view}/><div className="admin-profile"><strong>{user.name}</strong><small>{user.role}</small><Link href="/">Visit storefront ↗</Link><button className="link-button" onClick={()=>void logout().catch(e=>setError(errorMessage(e)))}>Sign out</button></div></aside><div className="admin-main"><header className="admin-topbar"><span>Bonoful Optics · Store management</span><span>{new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})}</span></header><main><div className="admin-heading"><div><h1>{title}</h1></div>{createPermission[view]&&can(createPermission[view])&&!detail&&<button className="button button-dark" onClick={()=>setEditor({kind:view})}>+ {view==='products'?'Add product':view==='purchase-orders'?'New purchase order':`Add ${view==='categories'?'category':view.replace(/s$/,'')}`}</button>}</div>{error&&<Alert>{error}</Alert>}{!data&&!error?<Loading/>:view===''?<><div className="metrics-grid">{[['Revenue received',price(stats.revenue)],['Orders',str(stats.orders)],['Active products',str(stats.activeProducts)],['Customers',str(stats.customers)]].map(([label,value])=><article key={label}><span>{label}</span><strong>{value}</strong></article>)}</div><div className="inventory-alerts"><Link href="/admin/inventory">{str(stats.lowStock)} low stock</Link><Link href="/admin/inventory">{str(stats.outOfStock)} out of stock</Link><Link href="/admin/orders">{str(stats.pendingOrders)} pending orders</Link></div><div className="admin-panels"><section><div className="section-heading"><h2>Recent orders</h2><Link className="text-link" href="/admin/orders">All orders →</Link></div><div className="table-wrap"><table><thead><tr><th>Order</th><th>Customer</th><th>Status</th><th>Total</th></tr></thead><tbody>{arr(stats.recentOrders).map(order=><tr key={str(order.id)}><td><Link href={`/admin/orders/${order.id}`}>{str(order.number)}</Link></td><td>{str(obj(order.user).name)}</td><td><Status value={str(order.status)}/></td><td>{price(order.total)}</td></tr>)}</tbody></table></div></section><section><h2>Revenue · last 30 days</h2>{arr(stats.revenueSeries).length?<div className="revenue-chart">{arr(stats.revenueSeries).map(point=><div key={str(point.date)}><span>{str(point.date).slice(5)}</span><meter value={Number(point.total)} max={Math.max(...arr(stats.revenueSeries).map(p=>Number(p.total)),1)}/><strong>{price(point.total)}</strong></div>)}</div>:<p>No settled payments in this period.</p>}<p className="small-note">Cash-on-delivery receipts are recorded on delivery. Pending refunds are excluded.</p></section></div></>:detail&&view==='orders'?<OrderView key={str(obj(data).status)} order={data as Order} admin onChange={()=>setRevision(r=>r+1)}/>:detail&&view==='prescriptions'?<PrescriptionDisplay record={data as RxRecord}/>:detail&&view==='customers'?<section className="admin-panel"><h2>{str(obj(data).name)}</h2><p>{str(obj(data).email)} · {str(obj(data).phone)}</p><h3>Order history</h3>{arr(obj(data).orders).map(order=><p key={str(order.id)}><Link href={`/admin/orders/${order.id}`}>{str(order.number)} →</Link> · {str(order.status)} · {price(order.total)}</p>)}</section>:<><div className="admin-toolbar"><label><span className="sr-only">Search {title}</span><input type="search" value={q} onChange={e=>{setQ(e.target.value);setPage(1);}} placeholder={`Search ${title.toLowerCase()}…`}/></label>{['orders','inventory'].includes(view)&&<label><span className="sr-only">Filter status</span><select value={status} onChange={e=>{setStatus(e.target.value);setPage(1);}}><option value="">All statuses</option>{(view==='orders'?['PENDING','CONFIRMED','PROCESSING','READY','SHIPPED','DELIVERED','CANCELLED','REFUNDED']:['low','out']).map(s=><option key={s}>{s}</option>)}</select></label>}{view==='products'&&selected.length>0&&can('products.update')&&<><button className="button button-outline" onClick={()=>void act('admin/products/bulk',{ids:selected,active:true})}>Activate selected</button><button className="button button-outline" onClick={()=>void act('admin/products/bulk',{ids:selected,active:false})}>Deactivate selected</button></>}</div><div className="table-wrap admin-table"><table><thead><tr>{view==='products'&&<th><span className="sr-only">Select</span></th>}{(columns[view]??[]).map(col=><th key={col.label}>{col.label}</th>)}<th>Actions</th></tr></thead><tbody>{rows.map((row,i)=><tr key={str(row.id)||i}>{view==='products'&&<td><input aria-label={`Select ${str(row.name)}`} type="checkbox" checked={selected.includes(str(row.id))} onChange={e=>setSelected(ids=>e.target.checked?[...ids,str(row.id)]:ids.filter(id=>id!==row.id))}/></td>}{(columns[view]??[]).map(col=><td key={col.label}>{col.render(row)}</td>)}<td>{actions(row)}</td></tr>)}</tbody></table>{!rows.length&&<EmptyState title="Nothing here yet">Records will appear here as your store grows.</EmptyState>}</div><div className="pagination"><span>{total} records</span><button className="button button-outline" disabled={page<=1} onClick={()=>setPage(p=>p-1)}>Previous</button><span>Page {page}</span><button className="button button-outline" disabled={page*20>=total} onClick={()=>setPage(p=>p+1)}>Next</button></div></>}</main></div>{editor?.kind==='products'&&<ProductEditor product={editor.row as EditableProduct|undefined} onClose={()=>setEditor(null)} onSaved={saved}/>} {editor?.kind==='inventory'&&editor.row&&<StockEditor row={editor.row} onClose={()=>setEditor(null)} onSaved={saved}/>} {editor&&['purchase-orders','receive'].includes(editor.kind)&&<PurchaseEditor row={editor.row} onClose={()=>setEditor(null)} onSaved={saved}/>} {editor?.kind==='roles'&&<RoleEditor row={editor.row} onClose={()=>setEditor(null)} onSaved={saved}/>} {editor&&['suppliers','staff','coupons','categories','brands'].includes(editor.kind)&&<ResourceEditor kind={editor.kind} row={editor.row} onClose={()=>setEditor(null)} onSaved={saved}/>}</div>;
+const createPermission: Record<string, string> = {
+  products: "products.create",
+  suppliers: "purchases.manage",
+  "purchase-orders": "purchases.manage",
+  categories: "products.update",
+  brands: "products.update",
+  coupons: "promotions.manage",
+  staff: "users.manage",
+  roles: "users.manage",
+};
+export function AdminDashboard() {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const section = pathname.split("/").filter(Boolean).slice(1);
+  const { user, ready, logout } = useCommerce();
+  const view = section[0] ?? "",
+    id = section[1];
+  const requestedStatus = searchParams.get("status") ?? "";
+  const [loaded, setLoaded] = useState<{ key: string; value: unknown } | null>(null),
+    [error, setError] = useState(""),
+    [q, setQ] = useState(""),
+    [page, setPage] = useState(1),
+    [status, setStatus] = useState(requestedStatus),
+    [revision, setRevision] = useState(0),
+    [editor, setEditor] = useState<{ kind: string; row?: Row } | null>(null),
+    [selected, setSelected] = useState<string[]>([]);
+  const dataKey = `${view}/${id ?? ""}`;
+  const data = loaded?.key === dataKey ? loaded.value : null;
+  useEffect(() => {
+    setQ("");
+    setPage(1);
+    setStatus(requestedStatus);
+    setSelected([]);
+    setEditor(null);
+    setError("");
+  }, [dataKey, requestedStatus]);
+  const can = (permission: string) => !!user?.permissions.includes(permission);
+  const allowed = view === "prescriptions" ? can("prescriptions.read") : can(nav.find((n) => n.path === view)?.permission ?? "reports.read");
+  useEffect(() => {
+    if (!user || !allowed) return;
+    let live = true;
+    const timer = setTimeout(() => {
+      let endpoint = ["categories", "brands"].includes(view) ? view : view === "prescriptions" ? `prescriptions/${id}` : `admin${view ? `/${view}` : ""}${id ? `/${id}` : ""}`;
+      endpoint += `?q=${encodeURIComponent(q)}&page=${page}${status ? `&status=${status}` : ""}`;
+      void api<unknown>(endpoint)
+        .then((d) => {
+          if (live) {
+            setLoaded({ key: `${view}/${id ?? ""}`, value: d });
+            setError("");
+          }
+        })
+        .catch((e) => {
+          if (live) setError(errorMessage(e));
+        });
+    }, 200);
+    return () => {
+      live = false;
+      clearTimeout(timer);
+    };
+  }, [view, id, q, page, status, revision, user, allowed]);
+  function saved() {
+    setEditor(null);
+    setRevision((v) => v + 1);
+  }
+  async function act(path: string, body: unknown, method = "POST") {
+    try {
+      await send(path, body, method);
+      setRevision((v) => v + 1);
+    } catch (e) {
+      setError(errorMessage(e));
+    }
+  }
+  if (!ready) return <Loading />;
+  if (!user)
+    return (
+      <main className="page-shell">
+        <EmptyState title="Store administration" href="/login?returnTo=/admin" label="Staff sign in">
+          Sign in with your authorised staff account.
+        </EmptyState>
+      </main>
+    );
+  if (!allowed)
+    return (
+      <main className="page-shell">
+        <EmptyState title="Access restricted" href="/account" label="Back to account">
+          Your account does not have permission to access this area.
+        </EmptyState>
+      </main>
+    );
+  const rows = Array.isArray(data) ? (data as Row[]) : arr(obj(data).items);
+  const total = Number(obj(data).total ?? rows.length);
+  const stats = obj(data);
+  const detail = !!id;
+  const title = nav.find((n) => n.path === view)?.label ?? "Prescription";
+  function actions(row: Row) {
+    return (
+      <div className="row-actions">
+        {view === "products" && (
+          <>
+            {can("products.update") && (
+              <button
+                onClick={async () => {
+                  try {
+                    setEditor({
+                      kind: "products",
+                      row: await api<Row>(`admin/products/${row.id}`),
+                    });
+                  } catch (e) {
+                    setError(errorMessage(e));
+                  }
+                }}
+              >
+                Edit
+              </button>
+            )}
+            {can("products.delete") && (
+              <button
+                onClick={() => {
+                  if (window.confirm(`Archive ${str(row.name)}? Historical orders are preserved.`)) void act(`admin/products/${row.id}`, {}, "DELETE");
+                }}
+              >
+                Archive
+              </button>
+            )}
+          </>
+        )}
+        {view === "inventory" && can("inventory.adjust") && <button onClick={() => setEditor({ kind: "inventory", row })}>Adjust</button>}
+        {view === "orders" && <Link href={`/admin/orders/${row.id}`}>Open →</Link>}
+        {view === "customers" && (
+          <>
+            <Link href={`/admin/customers/${row.id}`}>Details →</Link>
+            {can("customers.manage") && <button onClick={() => void act(`admin/customers/${row.id}`, { active: !row.active }, "PATCH")}>{row.active ? "Deactivate" : "Activate"}</button>}
+          </>
+        )}
+        {["suppliers", "coupons", "staff", "categories", "brands"].includes(view) && can(createPermission[view]) && (
+          <button onClick={() => setEditor({ kind: view, row })} disabled={view === "staff" && row.id === user?.id}>
+            Edit
+          </button>
+        )}
+        {view === "roles" && !["super_admin", "customer"].includes(str(row.id)) && <button onClick={() => setEditor({ kind: "roles", row })}>Permissions</button>}
+        {view === "purchase-orders" && can("purchases.manage") && (
+          <>
+            {["ORDERED", "PARTIALLY_RECEIVED"].includes(str(row.status)) && <button onClick={() => setEditor({ kind: "receive", row })}>Receive</button>}
+            {row.status === "DRAFT" && (
+              <button
+                onClick={() =>
+                  void act(`admin/purchase-orders/${row.id}/status`, {
+                    status: "ORDERED",
+                  })
+                }
+              >
+                Mark ordered
+              </button>
+            )}
+            {["ORDERED", "DRAFT"].includes(str(row.status)) && (
+              <button
+                onClick={() => {
+                  if (window.confirm("Cancel this purchase order?"))
+                    void act(`admin/purchase-orders/${row.id}/status`, {
+                      status: "CANCELLED",
+                    });
+                }}
+              >
+                Cancel
+              </button>
+            )}
+          </>
+        )}
+        {view === "reviews" && <button onClick={() => void act(`admin/reviews/${row.id}`, { approved: !row.approved }, "PATCH")}>{row.approved ? "Hide" : "Approve"}</button>}
+        {view === "appointments" && can("orders.update") && (
+          <select aria-label="Appointment status" value={str(row.status)} onChange={(e) => void act(`admin/appointments/${row.id}`, { status: e.target.value }, "PATCH")}>
+            <option>REQUESTED</option>
+            <option>CONFIRMED</option>
+            <option>COMPLETED</option>
+            <option>CANCELLED</option>
+          </select>
+        )}
+      </div>
+    );
+  }
+  return (
+    <div className="admin-layout">
+      <aside className="admin-sidebar">
+        <Link href="/admin" className="brand">
+          <span className="brand-mark">BO</span>
+          <span>
+            Bonoful <em>Optics</em>
+          </span>
+        </Link>
+        <p className="eyebrow">Store management</p>
+        <AdminNavigation items={nav.filter((n) => can(n.permission))} view={view} />
+        <div className="admin-profile">
+          <strong>{user.name}</strong>
+          <small>{user.role}</small>
+          <Link href="/">Visit storefront ↗</Link>
+          <button className="link-button" onClick={() => void logout().catch((e) => setError(errorMessage(e)))}>
+            Sign out
+          </button>
+        </div>
+      </aside>
+      <div className="admin-main">
+        <header className="admin-topbar">
+          <span>Bonoful Optics · Store management</span>
+          <span>
+            {new Date().toLocaleDateString("en-GB", {
+              day: "numeric",
+              month: "long",
+              year: "numeric",
+            })}
+          </span>
+        </header>
+        <main>
+          <div className="admin-heading">
+            <div>
+              <h1>{title}</h1>
+            </div>
+            {createPermission[view] && can(createPermission[view]) && !detail && (
+              <button className="button button-dark" onClick={() => setEditor({ kind: view })}>
+                + {view === "products" ? "Add product" : view === "purchase-orders" ? "New purchase order" : `Add ${view === "categories" ? "category" : view.replace(/s$/, "")}`}
+              </button>
+            )}
+          </div>
+          {error && <Alert>{error}</Alert>}
+          {!data && !error ? (
+            <Loading />
+          ) : view === "" ? (
+            <>
+              <div className="metrics-grid">
+                {[
+                  ["Revenue received", price(stats.revenue)],
+                  ["Orders", str(stats.orders)],
+                  ["Active products", str(stats.activeProducts)],
+                  ["Customers", str(stats.customers)],
+                ].map(([label, value]) => (
+                  <article key={label}>
+                    <span>{label}</span>
+                    <strong>{value}</strong>
+                  </article>
+                ))}
+              </div>
+              <div className="inventory-alerts">
+                <Link href="/admin/inventory?status=low">{str(stats.lowStock)} low stock</Link>
+                <Link href="/admin/inventory?status=out">{str(stats.outOfStock)} out of stock</Link>
+                <Link href="/admin/orders?status=PENDING">{str(stats.pendingOrders)} pending orders</Link>
+              </div>
+              <div className="admin-panels">
+                <section>
+                  <div className="section-heading">
+                    <h2>Recent orders</h2>
+                    <Link className="text-link" href="/admin/orders">
+                      All orders →
+                    </Link>
+                  </div>
+                  <div className="table-wrap">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Order</th>
+                          <th>Customer</th>
+                          <th>Status</th>
+                          <th>Total</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {arr(stats.recentOrders).map((order) => (
+                          <tr key={str(order.id)}>
+                            <td>
+                              <Link href={`/admin/orders/${order.id}`}>{str(order.number)}</Link>
+                            </td>
+                            <td>{str(obj(order.user).name)}</td>
+                            <td>
+                              <Status value={str(order.status)} />
+                            </td>
+                            <td>{price(order.total)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+                <section>
+                  <h2>Revenue · last 30 days</h2>
+                  {arr(stats.revenueSeries).length ? (
+                    <div className="revenue-chart">
+                      {arr(stats.revenueSeries).map((point) => (
+                        <div key={str(point.date)}>
+                          <span>{str(point.date).slice(5)}</span>
+                          <meter value={Number(point.total)} max={Math.max(...arr(stats.revenueSeries).map((p) => Number(p.total)), 1)} />
+                          <strong>{price(point.total)}</strong>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p>No settled payments in this period.</p>
+                  )}
+                  <p className="small-note">Cash-on-delivery receipts are recorded on delivery. Pending refunds are excluded.</p>
+                </section>
+              </div>
+            </>
+          ) : detail && view === "orders" ? (
+            <OrderView key={str(obj(data).status)} order={data as Order} admin onChange={() => setRevision((r) => r + 1)} />
+          ) : detail && view === "prescriptions" ? (
+            <PrescriptionDisplay record={data as RxRecord} />
+          ) : detail && view === "customers" ? (
+            <section className="admin-panel">
+              <h2>{str(obj(data).name)}</h2>
+              <p>
+                {str(obj(data).email)} · {str(obj(data).phone)}
+              </p>
+              <h3>Order history</h3>
+              {arr(obj(data).orders).map((order) => (
+                <p key={str(order.id)}>
+                  <Link href={`/admin/orders/${order.id}`}>{str(order.number)} →</Link> · {str(order.status)} · {price(order.total)}
+                </p>
+              ))}
+            </section>
+          ) : (
+            <>
+              <div className="admin-toolbar">
+                <label>
+                  <span className="sr-only">Search {title}</span>
+                  <input
+                    type="search"
+                    value={q}
+                    onChange={(e) => {
+                      setQ(e.target.value);
+                      setPage(1);
+                    }}
+                    placeholder={`Search ${title.toLowerCase()}…`}
+                  />
+                </label>
+                {["orders", "inventory"].includes(view) && (
+                  <label>
+                    <span className="sr-only">Filter status</span>
+                    <select
+                      value={status}
+                      onChange={(e) => {
+                        setStatus(e.target.value);
+                        setPage(1);
+                      }}
+                    >
+                      <option value="">All statuses</option>
+                      {(view === "orders" ? ["PENDING", "CONFIRMED", "PROCESSING", "READY", "SHIPPED", "DELIVERED", "CANCELLED", "REFUNDED"] : ["low", "out"]).map((s) => (
+                        <option key={s}>{s}</option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+                {view === "products" && selected.length > 0 && can("products.update") && (
+                  <>
+                    <button
+                      className="button button-outline"
+                      onClick={() =>
+                        void act("admin/products/bulk", {
+                          ids: selected,
+                          active: true,
+                        })
+                      }
+                    >
+                      Activate selected
+                    </button>
+                    <button
+                      className="button button-outline"
+                      onClick={() =>
+                        void act("admin/products/bulk", {
+                          ids: selected,
+                          active: false,
+                        })
+                      }
+                    >
+                      Deactivate selected
+                    </button>
+                  </>
+                )}
+              </div>
+              <div className="table-wrap admin-table">
+                <table>
+                  <thead>
+                    <tr>
+                      {view === "products" && (
+                        <th>
+                          <span className="sr-only">Select</span>
+                        </th>
+                      )}
+                      {(columns[view] ?? []).map((col) => (
+                        <th key={col.label}>{col.label}</th>
+                      ))}
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map((row, i) => (
+                      <tr key={str(row.id) || i}>
+                        {view === "products" && (
+                          <td>
+                            <input aria-label={`Select ${str(row.name)}`} type="checkbox" checked={selected.includes(str(row.id))} onChange={(e) => setSelected((ids) => (e.target.checked ? [...ids, str(row.id)] : ids.filter((id) => id !== row.id)))} />
+                          </td>
+                        )}
+                        {(columns[view] ?? []).map((col) => (
+                          <td key={col.label}>{col.render(row)}</td>
+                        ))}
+                        <td>{actions(row)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {!rows.length && <EmptyState title="Nothing here yet">Records will appear here as your store grows.</EmptyState>}
+              </div>
+              <div className="pagination">
+                <span>{total} records</span>
+                <button className="button button-outline" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+                  Previous
+                </button>
+                <span>Page {page}</span>
+                <button className="button button-outline" disabled={page * 20 >= total} onClick={() => setPage((p) => p + 1)}>
+                  Next
+                </button>
+              </div>
+            </>
+          )}
+        </main>
+      </div>
+      {editor?.kind === "products" && <ProductEditor product={editor.row as EditableProduct | undefined} onClose={() => setEditor(null)} onSaved={saved} />} {editor?.kind === "inventory" && editor.row && <StockEditor row={editor.row} onClose={() => setEditor(null)} onSaved={saved} />} {editor && ["purchase-orders", "receive"].includes(editor.kind) && <PurchaseEditor row={editor.row} onClose={() => setEditor(null)} onSaved={saved} />} {editor?.kind === "roles" && <RoleEditor row={editor.row} onClose={() => setEditor(null)} onSaved={saved} />} {editor && ["suppliers", "staff", "coupons", "categories", "brands"].includes(editor.kind) && <ResourceEditor kind={editor.kind} row={editor.row} onClose={() => setEditor(null)} onSaved={saved} />}
+    </div>
+  );
 }

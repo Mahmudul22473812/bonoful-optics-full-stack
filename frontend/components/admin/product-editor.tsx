@@ -11,7 +11,7 @@ type EditVariant = {
   color: string;
   size: string;
   tone: string;
-  price: number;
+  price: number | null;
   salePrice: number | null;
   active: boolean;
 };
@@ -40,7 +40,7 @@ const newVariant = (): EditVariant => ({
   color: "",
   size: "Medium",
   tone: "black",
-  price: 0,
+  price: null,
   salePrice: null,
   active: true,
 });
@@ -60,6 +60,8 @@ export function ProductEditor({
     [uploadColour, setUploadColour] = useState(
       product?.variants.at(-1)?.color ?? "",
     ),
+    [categoryId, setCategoryId] = useState(product?.categoryId ?? ""),
+    [brandId, setBrandId] = useState(product?.brandId ?? ""),
     [facets, setFacets] = useState<Facets | null>(null),
     [error, setError] = useState(""),
     [notice, setNotice] = useState(""),
@@ -101,6 +103,16 @@ export function ProductEditor({
               ?.scrollIntoView({ behavior: "smooth", block: "start" });
             return;
           }
+          const invalidPrice = variants.find(
+            (variant) => variant.price == null || variant.price < 100,
+          );
+          if (invalidPrice) {
+            setError("Enter a regular price of at least ৳1.00 for every variant.");
+            document
+              .getElementById("product-variants")
+              ?.scrollIntoView({ behavior: "smooth", block: "start" });
+            return;
+          }
           setBusy(true);
           const form = new FormData(e.currentTarget);
           const fields = Object.fromEntries(form);
@@ -108,8 +120,8 @@ export function ProductEditor({
             name: fields.name,
             slug: fields.slug,
             description: fields.description,
-            categoryId: fields.categoryId,
-            brandId: fields.brandId,
+            categoryId,
+            brandId,
             gender: fields.gender,
             shape: fields.shape,
             material: fields.material,
@@ -126,7 +138,7 @@ export function ProductEditor({
               color: v.color,
               size: v.size,
               tone: v.tone,
-              price: v.price,
+              price: v.price!,
               salePrice: v.salePrice,
               active: v.active,
             })),
@@ -199,7 +211,8 @@ export function ProductEditor({
               Category
               <select
                 name="categoryId"
-                defaultValue={product?.categoryId}
+                value={categoryId}
+                onChange={(event) => setCategoryId(event.target.value)}
                 required
               >
                 <option value="">Choose category</option>
@@ -212,7 +225,7 @@ export function ProductEditor({
             </label>
             <label>
               Brand
-              <select name="brandId" defaultValue={product?.brandId} required>
+              <select name="brandId" value={brandId} onChange={(event) => setBrandId(event.target.value)} required>
                 <option value="">Choose brand</option>
                 {facets?.brands.map((b) => (
                   <option key={b.id} value={b.id}>
@@ -316,13 +329,15 @@ export function ProductEditor({
                     type="number"
                     min="1"
                     step="0.01"
-                    value={variant.price / 100}
+                    value={variant.price == null ? "" : variant.price / 100}
                     required
                     onChange={(e) =>
                       change(
                         i,
                         "price",
-                        Math.round(Number(e.target.value) * 100),
+                        e.target.value === ""
+                          ? null
+                          : Math.round(Number(e.target.value) * 100),
                       )
                     }
                   />
