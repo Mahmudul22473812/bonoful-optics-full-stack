@@ -20,6 +20,7 @@ export function ProductCard({ product: original }: { product: Product }) {
   const [colour, setColour] = useState(
     photographedColour ?? original.color,
   );
+  const [isImageHovered, setIsImageHovered] = useState(false);
   const v =
     original.variants.find((v) => v.color === colour && v.stock > 0) ??
     original.variants.find((v) => v.color === colour);
@@ -54,7 +55,13 @@ export function ProductCard({ product: original }: { product: Product }) {
       <div className="product-visual">
         <Link
           href={detailHref}
-          className={"product-image " + (photos[1] ? "has-alternate" : "")}
+          className={
+            "product-image " +
+            (photos[1] ? "has-alternate " : "") +
+            (isImageHovered ? "is-hovered" : "")
+          }
+          onMouseEnter={() => setIsImageHovered(true)}
+          onMouseLeave={() => setIsImageHovered(false)}
         >
           {(sale || product.isNew) && (
             <span className="tag">{sale ? "Sale" : "New"}</span>
@@ -101,7 +108,10 @@ export function ProductCard({ product: original }: { product: Product }) {
       <ProductColours
         product={original}
         selected={colour}
-        onSelect={setColour}
+        onSelect={(selectedColour) => {
+          setIsImageHovered(false);
+          setColour(selectedColour);
+        }}
       />
       <Link href={detailHref} className="product-meta">
         <div>

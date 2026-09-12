@@ -120,6 +120,12 @@ test("uses a second colour-matched photo as the stable hover image", () => {
     "src",
     "/media/side.jpg",
   );
+  const imageArea = container.querySelector(".product-image")!;
+  expect(imageArea).not.toHaveClass("is-hovered");
+  fireEvent.mouseEnter(imageArea);
+  expect(imageArea).toHaveClass("is-hovered");
+  fireEvent.mouseLeave(imageArea);
+  expect(imageArea).not.toHaveClass("is-hovered");
 });
 test("colour selection updates the product link without navigation", () => {
   const variants = [
@@ -166,4 +172,56 @@ test("colour selection replaces the card photo with that colour's uploaded image
     "src",
     "/api/v1/files/gold",
   );
+});
+
+test("colour selection resets hover and shows the selected colour primary image", () => {
+  const variants = [
+    { ...product.variants[0], color: "Black", size: "Medium", price: 4850 },
+    { ...product.variants[0], id: "v2", color: "White", size: "Medium", price: 5100 },
+  ] as Product["variants"];
+  const images = [
+    { id: "black-front", url: "/black-front.jpg", alt: "Black front", color: "Black" },
+    { id: "black-side", url: "/black-side.jpg", alt: "Black side", color: "Black" },
+    { id: "white-front", url: "/white-front.jpg", alt: "White front", color: "White" },
+    { id: "white-side", url: "/white-side.jpg", alt: "White side", color: "White" },
+  ];
+  const { container } = render(
+    <ProductCard product={{ ...product, images, variants }} />,
+  );
+  const imageArea = container.querySelector(".product-image")!;
+  fireEvent.mouseEnter(imageArea);
+  expect(imageArea).toHaveClass("is-hovered");
+
+  fireEvent.click(screen.getByRole("button", { name: "Select White" }));
+
+  expect(imageArea).not.toHaveClass("is-hovered");
+  expect(container.querySelector(".product-photo-primary")).toHaveAttribute(
+    "src",
+    "/white-front.jpg",
+  );
+  expect(container.querySelector(".product-photo-alternate")).toHaveAttribute(
+    "src",
+    "/white-side.jpg",
+  );
+});
+
+test("a single-image product remains stable while hovering", () => {
+  const { container } = render(
+    <ProductCard
+      product={{
+        ...product,
+        images: [{ id: "only", url: "/only.jpg", alt: "Only view", color: "Black" }],
+        variants: [
+          { ...product.variants[0], color: "Black", size: "Medium", price: 4850 },
+        ] as Product["variants"],
+      }}
+    />,
+  );
+  const imageArea = container.querySelector(".product-image")!;
+  fireEvent.mouseEnter(imageArea);
+  expect(container.querySelector(".product-photo-primary")).toHaveAttribute(
+    "src",
+    "/only.jpg",
+  );
+  expect(container.querySelector(".product-photo-alternate")).toBeNull();
 });

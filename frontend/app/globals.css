@@ -2459,8 +2459,7 @@ h3 {
     transform 0.35s cubic-bezier(0.2, 0.6, 0.3, 1),
     filter 0.35s ease;
 }
-.product-card:hover .product-image img,
-.product-card:focus-within .product-image img {
+.product-image.is-hovered img {
   transform: scale(1.045);
 }
 .product-card .heart {
@@ -2545,16 +2544,10 @@ h3 {
     transform 0.5s cubic-bezier(0.2, 0.6, 0.3, 1);
 }
 @media (hover: hover) and (pointer: fine) {
-  .product-card:hover .product-image.has-alternate .product-photo-primary,
-  .product-card:focus-within
-    .product-image.has-alternate
-    .product-photo-primary {
+  .product-image.has-alternate.is-hovered .product-photo-primary {
     opacity: 0;
   }
-  .product-card:hover .product-image.has-alternate .product-photo-alternate,
-  .product-card:focus-within
-    .product-image.has-alternate
-    .product-photo-alternate {
+  .product-image.has-alternate.is-hovered .product-photo-alternate {
     opacity: 1;
     transform: scale(1.035);
   }
