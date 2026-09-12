@@ -34,7 +34,6 @@ export class OrderService {
   }
   async quote(req:AuthRequest,body:unknown) {const q=z.object({coupon:z.string().max(40).optional(),deliveryMethod:z.enum(['delivery','pickup']).default('delivery')}).strict().parse(body);return this.db.atomic(async(tx)=>(await this.quoteIn(tx,req.actor!.id,req.session.id,q.coupon,q.deliveryMethod)).totals);}
   async checkout(req:AuthRequest,data:CheckoutDto) {
-    if(!req.actor!.verifiedAt) throw new BadRequestException('Verify your email before placing an order.');
     try {
       return await this.db.atomic(async(tx)=>{
         const existing=await tx.order.findUnique({where:{idempotencyKey:data.idempotencyKey},include:orderInclude});

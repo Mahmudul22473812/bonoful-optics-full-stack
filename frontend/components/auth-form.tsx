@@ -5,6 +5,7 @@ import { FormEvent, useEffect, useState } from 'react';
 import { useCommerce } from './commerce-provider';
 import { Alert } from './ui';
 import { errorMessage,send } from '@/lib/api';
+import { postLoginDestination } from '@/lib/auth-routing';
 
 type Method='EMAIL'|'PHONE';
 type Verification={identifier:string;masked:string;method:Method};
@@ -34,7 +35,7 @@ export function AuthForm({action,token,returnTo}:{action:string;token?:string;re
  const [error,setError]=useState(''),[message,setMessage]=useState(''),[busy,setBusy]=useState(false),[method,setMethod]=useState<Method>('EMAIL'),[verification,setVerification]=useState<Verification|null>(null);
  if(verification)return <main className="auth-page"><div className="auth-intro"><p className="eyebrow">Your Bonoful account</p><h1>Almost there.</h1><p>Verify your contact detail to protect your account and place orders securely.</p></div><OtpPanel verification={verification}/></main>;
  return <main className="auth-page"><div className="auth-intro"><p className="eyebrow">Your Bonoful account</p><h1>{titles[action]}</h1><p>Save the frames you love, keep your prescriptions private, and follow every order.</p><Link className="text-link" href="/shop">Explore the collection →</Link></div><form className="auth-form" onSubmit={async e=>{e.preventDefault();setBusy(true);setError('');setMessage('');const data=Object.fromEntries(new FormData(e.currentTarget));try{
-   if(action==='login'){await login(String(data.email),String(data.password));router.push(returnTo);return;}
+   if(action==='login'){const user=await login(String(data.email),String(data.password));router.replace(postLoginDestination(user,returnTo));return;}
    if(action==='verify-account'){const identifier=String(data.identifier);const result=await send<OtpResponse>('auth/request-verification-otp',{identifier,method});setVerification({identifier,method,masked:result.identifier});return;}
    const payload=action==='register'?{name:data.name,email:data.email,phone:data.phone||undefined,password:data.password,verificationMethod:method}:action==='forgot-password'?{email:data.email}:action==='reset-password'?{token,password:data.password}:{token};
    const result=await send<OtpResponse|{message:string}>(`auth/${action}`,payload);if(action==='register'){const registered=result as OtpResponse;setVerification({identifier:method==='EMAIL'?String(data.email):String(data.phone),method,masked:registered.identifier});}else setMessage(result.message);

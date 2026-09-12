@@ -23,7 +23,7 @@ export async function syncSeedAccountPasswords() {
         timeCost: 3,
         parallelism: 1,
       });
-      await db.user.update({
+      await db.user.updateMany({
         where: { email: account.email.toLowerCase() },
         data: { passwordHash },
       });
