@@ -16,7 +16,7 @@ services:
       - key: DATABASE_URL
         sync: false
       - key: WEB_ORIGIN
-        sync: false
+        value: https://bonoful-optics.netlify.app
       - key: DATA_KEY
         sync: false
       - key: FILE_ROOT
