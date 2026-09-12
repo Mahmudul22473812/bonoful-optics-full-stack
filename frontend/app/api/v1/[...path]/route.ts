@@ -4,11 +4,18 @@ async function proxy(request:Request,context:{params:Promise<{path:string[]}>}){
   const {path}=await context.params;
   if(!path.length||path.some(p=>!/^[-a-zA-Z0-9_.]+$/.test(p)||p==='.'||p==='..'))return Response.json({error:{message:'Invalid API path.'}},{status:400});
   const url=new URL(request.url);
+  let trustedOrigin=url.origin;
+  const configuredOrigin=process.env.NEXT_PUBLIC_SITE_URL?.trim();
+  if(configuredOrigin){try{trustedOrigin=new URL(configuredOrigin).origin;}catch{/* Environment validation is handled by deployment configuration. */}}
   const incomingOrigin=request.headers.get('origin');
-  if(!['GET','HEAD','OPTIONS'].includes(request.method)&&incomingOrigin&&incomingOrigin!==url.origin)return Response.json({error:{message:'Untrusted request origin.'}},{status:403});
+  if(!['GET','HEAD','OPTIONS'].includes(request.method)&&incomingOrigin){
+    let normalizedIncomingOrigin:string;
+    try{normalizedIncomingOrigin=new URL(incomingOrigin).origin;}catch{return Response.json({error:{message:'Untrusted request origin.'}},{status:403});}
+    if(normalizedIncomingOrigin!==trustedOrigin)return Response.json({error:{message:'Untrusted request origin.'}},{status:403});
+  }
   const headers=new Headers();
   for(const name of ['content-type','cookie','x-csrf-token']){const value=request.headers.get(name);if(value)headers.set(name,value);}
-  headers.set('origin',url.origin);
+  headers.set('origin',trustedOrigin);
   try {
     const body=['GET','HEAD'].includes(request.method)?undefined:await request.arrayBuffer();
     if(body&&body.byteLength>6*1024*1024)return Response.json({error:{message:'Upload exceeds the size limit.'}},{status:413});
